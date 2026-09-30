@@ -81,6 +81,17 @@ Arquivos soltos no workfolder nunca são apagados. O Claude abre com `--dangerou
 
 Depois disso, preencha o `README.md` do projeto e a linha do índice, e faça o commit.
 
+## Implementando: skill `implementar`
+
+Toda implementação passa pelo mesmo fluxo:
+1. o agente da sessão planeja com você e grava a spec em `memory/<projeto>/specs/AAAA-MM-DD-<slug>.md` (modelo em `global/skills/implementar/spec-template.md`);
+2. agentes Haiku implementam a partir da spec e da memória (em paralelo quando as tarefas não se tocam);
+3. o agente da sessão testa (build, testes, `chrome-windows` para interface);
+4. falhas voltam para um Haiku novo: até 3 rodadas, depois 1 com Sonnet, depois ele para e te chama;
+5. no fim: memória atualizada (spec, arquitetura, decisões, estado, roadmap, melhorias), commit no projeto (sem push) e commit + push no dev-brain.
+
+O `project start` mostra o `estado-atual.md` do projeto ao abrir.
+
 ## Atualizando a memória
 
 - O agente propõe atualizar `estado-atual.md` e `decisoes.md` no fim das sessões relevantes e mostra o diff antes de gravar.

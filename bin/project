@@ -108,6 +108,17 @@ _offer_memory() {
         || warn "new-project.sh falhou; seguindo sem memória."
 }
 
+# Mostra onde o projeto parou, segundo a memória.
+_show_state() {
+    local f
+    f="$DEV_BRAIN_HOME/memory/$(_slug "$1")/estado-atual.md"
+    [[ -f "$f" ]] || return
+    echo ""
+    echo -e "${BOLD}Estado atual (dev-brain):${NC}"
+    sed -n '/^\*\*Última/p; /^## /,$p' "$f" | sed 's/^/  /'
+    echo ""
+}
+
 _project_start() {
     _check_deps
     _sync_dev_brain
@@ -159,6 +170,7 @@ _project_start() {
     fi
 
     _offer_memory "$dir" "$repo_name"
+    _show_state "$repo_name"
     _open_claude "$dir"
 }
 

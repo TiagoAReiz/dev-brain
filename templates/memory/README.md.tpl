@@ -14,6 +14,6 @@
 | Entender infra / organização do código | `arquitetura.md`  |
 | Saber por que algo é assim            | `decisoes.md`     |
 | Ver o plano e próximos passos         | `roadmap.md`      |
-| Detalhe de uma feature grande         | `specs/<nome>.md` |
+| Spec de uma feature ou melhoria       | `specs/AAAA-MM-DD-<slug>.md` |
 
 _Criado em {{DATA}}._

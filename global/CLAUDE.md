@@ -11,7 +11,11 @@
 - Comece sempre pelo `README.md` do projeto e abra os outros arquivos só quando precisar.
 - Consulte a memória ao retomar trabalho, antes de mudanças estruturais e ao discutir arquitetura.
 - Se a memória contradisser o código, o código vence: proponha corrigir a memória.
-- Ao atualizar a memória, mostre o diff antes de gravar.
+- Fora do fluxo de implementação, ao atualizar a memória mostre o diff antes de gravar.
+
+## Implementação
+- Toda implementação (feature, correção, refactor) segue a skill `implementar`: eu planejo com você, agentes Haiku implementam, eu testo.
+- No fim do fluxo, a memória do projeto é atualizada e commitada no dev-brain sem perguntar; o diff vai no resumo.
 
 ## Segredos
 - Nunca leia, grave ou commite segredos (.env, chaves, tokens). Documente só *onde* ficam.

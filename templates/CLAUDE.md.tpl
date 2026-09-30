@@ -25,7 +25,10 @@ Ao final de uma sessão em que algo relevante mudou:
 - `estado-atual.md`: atualize o conteúdo e o campo "Última atualização" (AAAA-MM-DD)
 - `decisoes.md`: adicione uma entrada para cada decisão nova (decisão, motivo, alternativas descartadas)
 
-**Mostre o diff e peça confirmação antes de gravar.** Não commite no dev-brain; o usuário faz isso.
+Implementações seguem a skill `implementar`, que atualiza a memória e commita no dev-brain no fim.
+Fora dela, **mostre o diff e peça confirmação antes de gravar** e não commite no dev-brain.
+
+Specs de features e melhorias ficam em `specs/AAAA-MM-DD-<slug>.md`, com `Status:` no topo.
 
 ### A memória pode estar desatualizada
 Trate a memória como histórico, não como verdade. Se ela contradisser o código, **o código vence**: siga o código e proponha a correção na memória.
