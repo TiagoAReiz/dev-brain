@@ -1,0 +1,32 @@
+# Segredos: nunca versionar
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.keystore
+*.jks
+id_rsa*
+id_ed25519*
+secrets*
+*secret*.json
+credentials*
+.credentials*
+*.token
+.npmrc
+.netrc
+
+# SO / editores
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.idea/
+.vscode/
+
+# Backups gerados pelo bootstrap
+*.bak.*
