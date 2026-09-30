@@ -8,6 +8,7 @@ Roda em **Linux, macOS e WSL**. No Windows, use dentro do WSL (o Git Bash não c
 ## Estrutura
 
 ```
+install-tools.sh      # instala ferramentas de dev no Ubuntu/WSL (apt + nvm + claude)
 bootstrap.sh          # configura a máquina (symlinks + checagem de deps)
 new-project.sh        # cria memória + CLAUDE.md de um projeto novo
 global/CLAUDE.md      # instruções globais  -> ~/.claude/CLAUDE.md
@@ -22,9 +23,19 @@ memory/<projeto>/     # README, arquitetura, estado-atual, decisoes, roadmap, sp
 ```bash
 gh auth login                       # se ainda não estiver logado
 gh repo clone TiagoAReiz/dev-brain ~/dev-brain
-cd ~/dev-brain && ./bootstrap.sh
-echo 'export DEV_BRAIN_HOME="$HOME/dev-brain"' >> ~/.bashrc   # ou ~/.zshrc
+cd ~/dev-brain
+./install-tools.sh                  # só Ubuntu/WSL; pede a senha do sudo
+source ~/.bashrc
+./bootstrap.sh
 ```
+
+O `install-tools.sh` é idempotente e instala:
+- **via apt:** git, gh (repo oficial), build-essential, curl, unzip, jq, shellcheck, python3 + pip + venv + pipx, OpenJDK 21 e 25 (padrão 25) e maven;
+- **no seu usuário:** nvm + Node LTS (npm/npx), Nest CLI e Claude Code;
+- **no `~/.bashrc`:** nvm, `~/.local/bin` e `DEV_BRAIN_HOME`.
+
+Fases separadas: `sudo ./install-tools.sh system` e `./install-tools.sh user`.
+Para trocar o Java padrão: `sudo update-alternatives --config java`.
 
 O `bootstrap.sh` é idempotente e pode rodar quantas vezes quiser. Ele:
 - cria symlinks de `global/CLAUDE.md` e de cada skill em `~/.claude/`;
