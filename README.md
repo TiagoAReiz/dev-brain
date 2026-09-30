@@ -51,12 +51,14 @@ Depois de adicionar uma skill em `global/skills/`, rode `./bootstrap.sh` de novo
 Fluxo de trabalho em `~/workfolder` (muda com `WORKFOLDER=...`): clona, trabalha, salva tudo e limpa.
 
 ```bash
-project create meu-app [--public]   # repo novo (privado por padrão) + memória + CLAUDE.md, abre o Claude
-project start                       # pull do dev-brain, escolhe um repo (fzf), clona, oferece criar a memória, abre o Claude
+project create meu-app [--public]   # repo novo (privado por padrão) + memória + CLAUDE.md, abre o Claude no kickoff
+project start                       # pull do dev-brain, escolhe um repo (fzf), clona, mostra o estado atual (ou oferece memória + kickoff), abre o Claude
 project exit                        # commita e dá push em tudo, oferece commitar a memória, limpa o workfolder
 ```
 
-O `create` usa o `new-project.sh` por baixo: o nome do repo é o nome da memória, e o `CLAUDE.md` entra no commit inicial.
+O `create` usa o `new-project.sh` por baixo: o nome do repo é o nome da memória, o `CLAUDE.md` entra no commit inicial
+e a memória é commitada e enviada no dev-brain na hora. O Claude abre já rodando a skill `kickoff`, que conversa
+com você e preenche README, arquitetura, decisões e roadmap da memória. Daí em diante, cada feature segue a `implementar`.
 
 O `exit` só apaga uma pasta quando **tudo** está no GitHub. Mantém a pasta (e avisa) se:
 - não é repo git, ou há repos git aninhados e você não quis removê-los;

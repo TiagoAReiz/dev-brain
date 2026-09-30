@@ -37,9 +37,28 @@ _slug() {
     echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//'
 }
 
+# _open_claude <dir> [prompt inicial]
 _open_claude() {
     info "Abrindo o Claude Code em $1..."
-    cd "$1" && exec claude --dangerously-skip-permissions
+    cd "$1" || exit 1
+    if [[ -n "${2:-}" ]]; then
+        exec claude --dangerously-skip-permissions "$2"
+    fi
+    exec claude --dangerously-skip-permissions
+}
+
+_kickoff_prompt() {
+    echo "Use a skill kickoff para preencher a memória do projeto $1 no dev-brain."
+}
+
+# Commita e envia a memória recém-criada, para ela existir em qualquer máquina.
+_commit_new_memory() {
+    local mem="$1"
+    git -C "$DEV_BRAIN_HOME" commit -q -m "memory($mem): cria projeto" -- "memory/$mem" memory/README.md \
+        || { warn "Não consegui commitar a memória no dev-brain."; return; }
+    git -C "$DEV_BRAIN_HOME" push -q 2>/dev/null \
+        && ok "Memória '$mem' commitada e enviada no dev-brain." \
+        || warn "Memória commitada, mas o push do dev-brain falhou."
 }
 
 # Atualiza o dev-brain (memória, skills) antes de começar a trabalhar.
@@ -79,7 +98,8 @@ _project_create() {
     echo "# $name" > README.md
 
     # Memória no dev-brain + CLAUDE.md do projeto apontando para ela.
-    "$DEV_BRAIN_HOME/new-project.sh" "$name" "$dir" || die "new-project.sh falhou."
+    "$DEV_BRAIN_HOME/new-project.sh" "$name" "$dir" >/dev/null || die "new-project.sh falhou."
+    _commit_new_memory "$name"
 
     git add README.md CLAUDE.md
     git commit -q -m "Initial commit" || die "commit inicial falhou (git user.name/email configurados?)."
@@ -91,7 +111,7 @@ _project_create() {
         warn "Falhou ao criar o repo no GitHub. O projeto local ficou em $dir."
     fi
 
-    _open_claude "$dir"
+    _open_claude "$dir" "$(_kickoff_prompt "$name")"
 }
 
 # Se o repo não tem memória no dev-brain, oferece criar.
@@ -103,9 +123,13 @@ _offer_memory() {
         warn "Sem memória 'memory/$mem' no dev-brain, e o repo já tem CLAUDE.md. Crie na mão se quiser."
         return
     fi
-    ask "Projeto sem memória no dev-brain. Criar 'memory/$mem'?" || return
-    "$DEV_BRAIN_HOME/new-project.sh" "$mem" "$dir" \
-        || warn "new-project.sh falhou; seguindo sem memória."
+    ask "Projeto sem memória no dev-brain. Criar 'memory/$mem' e fazer o kickoff?" || return
+    if "$DEV_BRAIN_HOME/new-project.sh" "$mem" "$dir" >/dev/null; then
+        _commit_new_memory "$mem"
+        KICKOFF="$mem"
+    else
+        warn "new-project.sh falhou; seguindo sem memória."
+    fi
 }
 
 # Mostra onde o projeto parou, segundo a memória.
@@ -169,7 +193,11 @@ _project_start() {
         ok "Clonado em $dir"
     fi
 
+    KICKOFF=""
     _offer_memory "$dir" "$repo_name"
+    if [[ -n "$KICKOFF" ]]; then
+        _open_claude "$dir" "$(_kickoff_prompt "$KICKOFF")"
+    fi
     _show_state "$repo_name"
     _open_claude "$dir"
 }
@@ -328,7 +356,7 @@ case "${1:-}" in
         echo -e "  ${BOLD}project${NC}: projetos do GitHub em $WORKFOLDER, com memória no dev-brain"
         echo ""
         echo -e "  ${GREEN}project create <nome> [--public]${NC}"
-        echo    "      Cria o repo (privado por padrão), a memória no dev-brain e abre o Claude"
+        echo    "      Cria o repo (privado por padrão) e a memória no dev-brain, abre o Claude no kickoff"
         echo ""
         echo -e "  ${GREEN}project start${NC}"
         echo    "      Escolhe um repo, clona, oferece criar a memória e abre o Claude"
