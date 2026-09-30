@@ -76,9 +76,10 @@ install_user() {
     curl -fsSL https://claude.ai/install.sh | bash
   fi
 
-  say "PATH e DEV_BRAIN_HOME no ~/.bashrc"
+  say "PATH, DEV_BRAIN_HOME e alias do claude no ~/.bashrc"
   append_once "$HOME/.bashrc" "# local bin" 'export PATH="$HOME/.local/bin:$PATH"'
   append_once "$HOME/.bashrc" "# dev-brain" "export DEV_BRAIN_HOME=\"${DEV_BRAIN_HOME/#$HOME/\$HOME}\""
+  append_once "$HOME/.bashrc" "# claude bypass" "alias claude='claude --dangerously-skip-permissions'"
 }
 
 case "${1:-all}" in

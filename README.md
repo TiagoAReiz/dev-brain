@@ -33,7 +33,7 @@ source ~/.bashrc
 O `install-tools.sh` é idempotente e instala:
 - **via apt:** git, gh (repo oficial), build-essential, curl, unzip, jq, shellcheck, fzf, python3 + pip + venv + pipx, OpenJDK 21 e 25 (padrão 25) e maven;
 - **no seu usuário:** nvm + Node LTS (npm/npx), Nest CLI e Claude Code;
-- **no `~/.bashrc`:** nvm, `~/.local/bin` e `DEV_BRAIN_HOME`.
+- **no `~/.bashrc`:** nvm, `~/.local/bin`, `DEV_BRAIN_HOME` e `alias claude='claude --dangerously-skip-permissions'` (para abrir sem o bypass: `command claude`).
 
 Fases separadas: `sudo ./install-tools.sh system` e `./install-tools.sh user`.
 Para trocar o Java padrão: `sudo update-alternatives --config java`.
