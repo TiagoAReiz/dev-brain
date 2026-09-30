@@ -32,7 +32,7 @@ install_system() {
   say "Pacotes apt"
   apt-get update -qq
   apt-get install -y -qq \
-    build-essential curl wget ca-certificates gnupg unzip zip jq git gh shellcheck \
+    build-essential curl wget ca-certificates gnupg unzip zip jq git gh shellcheck fzf \
     python3 python3-pip python3-venv python-is-python3 pipx \
     openjdk-21-jdk openjdk-25-jdk maven
 

@@ -44,6 +44,7 @@ check_cmd gh         obrigatório "https://cli.github.com"
 check_cmd node       opcional    "https://nodejs.org (ou nvm/fnm)"
 check_cmd python3    opcional    "$pkg python3"
 check_cmd shellcheck opcional    "$pkg shellcheck"
+check_cmd fzf        opcional    "$pkg fzf (seletor do project start)"
 check_cmd claude     opcional    "https://docs.claude.com/claude-code"
 
 if command -v gh >/dev/null 2>&1 && ! gh auth status >/dev/null 2>&1; then
@@ -80,6 +81,15 @@ for skill in "$DEV_BRAIN_HOME"/global/skills/*/; do
   skill="${skill%/}"
   link "$skill" "$CLAUDE_DIR/skills/$(basename "$skill")"
 done
+
+for cmd in "$DEV_BRAIN_HOME"/bin/*; do
+  [ -f "$cmd" ] && [ -x "$cmd" ] || continue
+  link "$cmd" "$HOME/.local/bin/$(basename "$cmd")"
+done
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) manual_items+=("adicionar ~/.local/bin ao PATH (o install-tools.sh faz isso)") ;;
+esac
 
 # --- DEV_BRAIN_HOME ---------------------------------------------------------
 if [ "$ENV_DEV_BRAIN_HOME" = "$DEV_BRAIN_HOME" ]; then

@@ -1,0 +1,328 @@
+#!/usr/bin/env bash
+# project: gerencia projetos do GitHub em ~/workfolder, integrado ao dev-brain.
+#   project create <nome> [--public]  cria repo + memória no dev-brain, abre o Claude
+#   project start                     escolhe um repo, clona, abre o Claude
+#   project exit                      salva tudo no GitHub e limpa o workfolder
+# O bootstrap.sh cria o symlink em ~/.local/bin/project.
+set -uo pipefail
+
+DEV_BRAIN_HOME="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+WORKFOLDER="${WORKFOLDER:-$HOME/workfolder}"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+info() { echo -e "${BLUE}$*${NC}"; }
+ok()   { echo -e "${GREEN}$*${NC}"; }
+warn() { echo -e "${YELLOW}$*${NC}"; }
+die()  { echo -e "${RED}Erro: $*${NC}" >&2; exit 1; }
+
+ask() { # $1=pergunta; retorna 0 se a resposta for y
+    local reply
+    read -rp "  $1 (y/N): " reply
+    [[ "${reply,,}" == "y" ]]
+}
+
+_check_deps() {
+    command -v gh &>/dev/null || die "'gh' não está instalado. Rode o install-tools.sh e depois: gh auth login"
+    gh auth status &>/dev/null || die "gh não está logado. Rode: gh auth login"
+}
+
+# Nome de repo do GitHub -> nome de memória (minúsculas, números e hífens).
+_slug() {
+    echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//'
+}
+
+_open_claude() {
+    info "Abrindo o Claude Code em $1..."
+    cd "$1" && exec claude --dangerously-skip-permissions
+}
+
+# Atualiza o dev-brain (memória, skills) antes de começar a trabalhar.
+_sync_dev_brain() {
+    if [[ -n "$(git -C "$DEV_BRAIN_HOME" status --porcelain 2>/dev/null)" ]]; then
+        warn "dev-brain tem mudanças locais; pulando o pull."
+        return
+    fi
+    git -C "$DEV_BRAIN_HOME" pull -q --ff-only 2>/dev/null \
+        && ok "dev-brain atualizado." \
+        || warn "Não consegui dar pull no dev-brain; seguindo com a versão local."
+}
+
+_project_create() {
+    local name="" visibility="--private"
+    for arg in "$@"; do
+        case "$arg" in
+            --public) visibility="--public" ;;
+            -*) die "opção desconhecida: $arg" ;;
+            *) name="$arg" ;;
+        esac
+    done
+    [[ -n "$name" ]] || die "uso: project create <nome> [--public]"
+    [[ "$name" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] \
+        || die "nome inválido '$name': use só minúsculas, números e hífens (é o nome do repo e da memória)."
+
+    _check_deps
+
+    local dir="$WORKFOLDER/$name"
+    [[ ! -e "$dir" ]] || die "'$dir' já existe."
+    [[ ! -e "$DEV_BRAIN_HOME/memory/$name" ]] || die "memória '$name' já existe no dev-brain."
+
+    info "Criando o projeto ${BOLD}$name${NC}${BLUE}..."
+    mkdir -p "$dir"
+    cd "$dir" || exit 1
+    git init -q -b main
+    echo "# $name" > README.md
+
+    # Memória no dev-brain + CLAUDE.md do projeto apontando para ela.
+    "$DEV_BRAIN_HOME/new-project.sh" "$name" "$dir" || die "new-project.sh falhou."
+
+    git add README.md CLAUDE.md
+    git commit -q -m "Initial commit" || die "commit inicial falhou (git user.name/email configurados?)."
+
+    info "Criando o repositório no GitHub (${visibility#--})..."
+    if gh repo create "$name" "$visibility" --source=. --remote=origin --push; then
+        ok "Projeto '$name' criado e enviado para o GitHub!"
+    else
+        warn "Falhou ao criar o repo no GitHub. O projeto local ficou em $dir."
+    fi
+
+    _open_claude "$dir"
+}
+
+# Se o repo não tem memória no dev-brain, oferece criar.
+_offer_memory() {
+    local dir="$1" repo_name="$2" mem
+    mem="$(_slug "$repo_name")"
+    [[ -d "$DEV_BRAIN_HOME/memory/$mem" ]] && return
+    if [[ -e "$dir/CLAUDE.md" ]]; then
+        warn "Sem memória 'memory/$mem' no dev-brain, e o repo já tem CLAUDE.md. Crie na mão se quiser."
+        return
+    fi
+    ask "Projeto sem memória no dev-brain. Criar 'memory/$mem'?" || return
+    "$DEV_BRAIN_HOME/new-project.sh" "$mem" "$dir" \
+        || warn "new-project.sh falhou; seguindo sem memória."
+}
+
+_project_start() {
+    _check_deps
+    _sync_dev_brain
+
+    info "Buscando seus repositórios no GitHub..."
+    local repos
+    repos=$(gh repo list --limit 200 --json nameWithOwner -q '.[].nameWithOwner' 2>/dev/null)
+    [[ -n "$repos" ]] || die "nenhum repositório encontrado."
+
+    local selected
+    if command -v fzf &>/dev/null; then
+        selected=$(echo "$repos" | fzf \
+            --prompt="  Repo > " \
+            --height=50% \
+            --border=rounded \
+            --header="Repositórios do GitHub" \
+            --header-first \
+            --color=header:bold)
+    else
+        echo ""
+        local i=1 arr=() choice
+        while IFS= read -r repo; do
+            printf "  ${BLUE}%3d)${NC} %s\n" "$i" "$repo"
+            arr+=("$repo")
+            ((i++))
+        done <<< "$repos"
+        echo ""
+        read -rp "Número: " choice
+        [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#arr[@]} )) \
+            || die "seleção inválida."
+        selected="${arr[$((choice-1))]}"
+    fi
+
+    if [[ -z "$selected" ]]; then
+        warn "Nenhum repositório selecionado."
+        exit 0
+    fi
+
+    local repo_name="${selected##*/}"
+    local dir="$WORKFOLDER/$repo_name"
+
+    if [[ -d "$dir" ]]; then
+        warn "Pasta já existe, abrindo o Claude nela..."
+    else
+        info "Clonando ${BOLD}$selected${NC}${BLUE}..."
+        mkdir -p "$WORKFOLDER"
+        gh repo clone "$selected" "$dir" -- -q || die "falhou ao clonar $selected."
+        ok "Clonado em $dir"
+    fi
+
+    _offer_memory "$dir" "$repo_name"
+    _open_claude "$dir"
+}
+
+# Salva um repo no GitHub. Retorna 0 só se TUDO estiver no remoto
+# (sem mudanças pendentes, sem commits locais não enviados, sem stash).
+_save_repo() {
+    local dir="$1" repo_name="$2" date_suffix="$3"
+    cd "$dir" || return 1
+
+    # Repos git aninhados: o git add -A os trataria como submódulo e o conteúdo se perderia.
+    local nested_gits
+    nested_gits=$(find . -mindepth 2 -name ".git" -type d 2>/dev/null)
+    if [[ -n "$nested_gits" ]]; then
+        echo -e "  ${RED}AVISO: repos git aninhados em '$repo_name':${NC}"
+        while IFS= read -r nested; do
+            echo -e "    ${YELLOW}→ ${nested%/.git}${NC}"
+        done <<< "$nested_gits"
+        ask "Remover os .git internos (perde o histórico deles) e salvar tudo?" || return 1
+        while IFS= read -r nested; do
+            rm -rf "$nested"
+            ok "  Removido: $nested"
+        done <<< "$nested_gits"
+    fi
+
+    # Arquivos ignorados tipo .env não vão para o GitHub e seriam apagados com a pasta.
+    local secrets
+    secrets=$(git ls-files --others --ignored --exclude-standard 2>/dev/null | grep -E '(^|/)\.env' | grep -v '\.env\.example$')
+    if [[ -n "$secrets" ]]; then
+        warn "  Arquivos ignorados que NÃO vão para o GitHub:"
+        echo "$secrets" | sed 's/^/    → /'
+        ask "Apagar mesmo assim quando limpar a pasta?" || return 1
+    fi
+
+    git add -A
+    if ! git diff --cached --quiet; then
+        git commit -q -m "work in progress - $date_suffix" || { echo -e "  ${RED}Commit falhou.${NC}"; return 1; }
+        echo "  Mudanças pendentes commitadas."
+    else
+        echo "  Nada para commitar."
+    fi
+
+    local current_branch
+    current_branch=$(git symbolic-ref --short -q HEAD) \
+        || { echo -e "  ${RED}HEAD destacado; resolva na mão.${NC}"; return 1; }
+
+    if git push -q 2>/dev/null; then
+        ok "  '$current_branch' enviado."
+    else
+        # Empurra o HEAD para uma branch nova sem trocar de branch local.
+        local wip
+        wip="wip/$(date +%Y-%m-%d-%H%M%S)"
+        warn "  Push falhou, salvando em '$wip'..."
+        git push -q origin "HEAD:refs/heads/$wip" 2>/dev/null \
+            || { echo -e "  ${RED}Não consegui enviar para o GitHub.${NC}"; return 1; }
+        ok "  Salvo em '$wip'."
+        git fetch -q origin 2>/dev/null
+    fi
+
+    # Checagem final: nada pode existir só localmente.
+    if [[ -n "$(git status --porcelain)" ]]; then
+        echo -e "  ${RED}Ainda há mudanças não commitadas.${NC}"; return 1
+    fi
+    if [[ -n "$(git log --branches --not --remotes --oneline 2>/dev/null | head -1)" ]]; then
+        echo -e "  ${RED}Há commits em branches locais que não estão no GitHub.${NC}"; return 1
+    fi
+    if [[ -n "$(git stash list 2>/dev/null)" ]]; then
+        echo -e "  ${RED}Há stashes locais.${NC}"; return 1
+    fi
+    return 0
+}
+
+# Oferece commitar e enviar a memória atualizada durante a sessão.
+_save_dev_brain() {
+    echo ""
+    echo -e "${BOLD}--- dev-brain ---${NC}"
+    local changes
+    changes=$(git -C "$DEV_BRAIN_HOME" status --porcelain -- memory)
+    if [[ -n "$changes" ]]; then
+        git -C "$DEV_BRAIN_HOME" status --short -- memory | sed 's/^/  /'
+        if ask "Commitar e enviar essas mudanças de memória?"; then
+            git -C "$DEV_BRAIN_HOME" add -- memory \
+                && git -C "$DEV_BRAIN_HOME" commit -q -m "memory: sessão de $1" \
+                && ok "  Memória commitada."
+        fi
+    else
+        echo "  Memória sem mudanças."
+    fi
+    if [[ -n "$(git -C "$DEV_BRAIN_HOME" log '@{u}..' --oneline 2>/dev/null)" ]]; then
+        git -C "$DEV_BRAIN_HOME" push -q 2>/dev/null \
+            && ok "  dev-brain enviado." \
+            || warn "  Push do dev-brain falhou; rode 'git -C $DEV_BRAIN_HOME push' na mão."
+    fi
+    [[ -z "$(git -C "$DEV_BRAIN_HOME" status --porcelain -- . ':!memory')" ]] \
+        || warn "  Há outras mudanças no dev-brain fora de memory/ (não mexi nelas)."
+}
+
+_project_exit() {
+    _check_deps
+    local date_suffix
+    date_suffix=$(date +%Y-%m-%d)
+
+    echo -e "${BOLD}${BLUE}Salvando os projetos no GitHub...${NC}"
+
+    local saved=() kept=()
+    shopt -s nullglob
+    for dir in "$WORKFOLDER"/*/; do
+        dir="${dir%/}"
+        local repo_name
+        repo_name=$(basename "$dir")
+        echo ""
+        echo -e "${BOLD}--- $repo_name ---${NC}"
+
+        if [[ ! -d "$dir/.git" ]]; then
+            warn "  Não é repo git; mantido."
+            kept+=("$repo_name")
+            continue
+        fi
+
+        if _save_repo "$dir" "$repo_name" "$date_suffix"; then
+            saved+=("$dir")
+        else
+            warn "  Mantido localmente; nada foi apagado."
+            kept+=("$repo_name")
+        fi
+    done
+    cd "$HOME" || exit 1
+
+    _save_dev_brain "$date_suffix"
+
+    echo ""
+    info "Limpando o workfolder..."
+    # Só apaga o que foi confirmado no GitHub. Arquivos soltos no workfolder ficam.
+    for dir in "${saved[@]}"; do
+        rm -rf "$dir"
+    done
+
+    if (( ${#kept[@]} > 0 )); then
+        echo ""
+        echo -e "${YELLOW}${BOLD}Atenção:${NC} ${YELLOW}${#kept[@]} pasta(s) mantida(s) no workfolder:${NC}"
+        for k in "${kept[@]}"; do
+            echo -e "  ${RED}→ $k${NC}"
+        done
+        warn "Resolva na mão antes de rodar 'project exit' de novo."
+    else
+        echo -e "${GREEN}${BOLD}Pronto! Workfolder limpo.${NC}"
+    fi
+}
+
+case "${1:-}" in
+    create) shift; _project_create "$@" ;;
+    start)  _project_start ;;
+    exit)   _project_exit ;;
+    *)
+        echo ""
+        echo -e "  ${BOLD}project${NC}: projetos do GitHub em $WORKFOLDER, com memória no dev-brain"
+        echo ""
+        echo -e "  ${GREEN}project create <nome> [--public]${NC}"
+        echo    "      Cria o repo (privado por padrão), a memória no dev-brain e abre o Claude"
+        echo ""
+        echo -e "  ${GREEN}project start${NC}"
+        echo    "      Escolhe um repo, clona, oferece criar a memória e abre o Claude"
+        echo ""
+        echo -e "  ${GREEN}project exit${NC}"
+        echo    "      Salva tudo no GitHub, oferece commitar a memória e limpa o workfolder"
+        echo ""
+        ;;
+esac
