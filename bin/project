@@ -72,24 +72,57 @@ _sync_dev_brain() {
         || warn "Não consegui dar pull no dev-brain; seguindo com a versão local."
 }
 
+# Valida um nome de projeto; imprime o motivo se for inválido.
+_name_problem() {
+    if [[ ! "$1" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+        echo "use só minúsculas, números e hífens (ex.: meu-app)"
+    elif [[ -e "$WORKFOLDER/$1" ]]; then
+        echo "'$WORKFOLDER/$1' já existe"
+    elif [[ -e "$DEV_BRAIN_HOME/memory/$1" ]]; then
+        echo "a memória '$1' já existe no dev-brain"
+    fi
+}
+
 _project_create() {
-    local name="" visibility="--private"
+    local name="" visibility=""
     for arg in "$@"; do
         case "$arg" in
             --public) visibility="--public" ;;
+            --private) visibility="--private" ;;
             -*) die "opção desconhecida: $arg" ;;
             *) name="$arg" ;;
         esac
     done
-    [[ -n "$name" ]] || die "uso: project create <nome> [--public]"
-    [[ "$name" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] \
-        || die "nome inválido '$name': use só minúsculas, números e hífens (é o nome do repo e da memória)."
+
+    local problem
+    if [[ -n "$name" ]]; then
+        problem=$(_name_problem "$name")
+        [[ -z "$problem" ]] || die "nome '$name': $problem."
+    else
+        while true; do
+            read -rp "  Nome do projeto (repo e memória): " name
+            problem=$(_name_problem "$name")
+            [[ -n "$name" && -z "$problem" ]] && break
+            [[ -z "$name" ]] && problem="o nome não pode ser vazio"
+            echo -e "  ${RED}$problem${NC}"
+        done
+    fi
+
+    if [[ -z "$visibility" ]]; then
+        local choice
+        echo "  Visibilidade do repo no GitHub:"
+        echo "    1) privado (padrão)"
+        echo "    2) público"
+        read -rp "  Escolha [1]: " choice
+        case "$choice" in
+            2|p|pub|publico|público) visibility="--public" ;;
+            *) visibility="--private" ;;
+        esac
+    fi
 
     _check_deps
 
     local dir="$WORKFOLDER/$name"
-    [[ ! -e "$dir" ]] || die "'$dir' já existe."
-    [[ ! -e "$DEV_BRAIN_HOME/memory/$name" ]] || die "memória '$name' já existe no dev-brain."
 
     info "Criando o projeto ${BOLD}$name${NC}${BLUE}..."
     mkdir -p "$dir"
@@ -355,7 +388,7 @@ case "${1:-}" in
         echo ""
         echo -e "  ${BOLD}project${NC}: projetos do GitHub em $WORKFOLDER, com memória no dev-brain"
         echo ""
-        echo -e "  ${GREEN}project create <nome> [--public]${NC}"
+        echo -e "  ${GREEN}project create [nome] [--public|--private]${NC}"
         echo    "      Cria o repo (privado por padrão) e a memória no dev-brain, abre o Claude no kickoff"
         echo ""
         echo -e "  ${GREEN}project start${NC}"

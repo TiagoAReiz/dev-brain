@@ -51,7 +51,7 @@ Depois de adicionar uma skill em `global/skills/`, rode `./bootstrap.sh` de novo
 Fluxo de trabalho em `~/workfolder` (muda com `WORKFOLDER=...`): clona, trabalha, salva tudo e limpa.
 
 ```bash
-project create meu-app [--public]   # repo novo (privado por padrão) + memória + CLAUDE.md, abre o Claude no kickoff
+project create [nome] [--public]    # pergunta o que faltar; repo novo + memória + CLAUDE.md, abre o Claude no kickoff
 project start                       # pull do dev-brain, escolhe um repo (fzf), clona, mostra o estado atual (ou oferece memória + kickoff), abre o Claude
 project exit                        # commita e dá push em tudo, oferece commitar a memória, limpa o workfolder
 ```
