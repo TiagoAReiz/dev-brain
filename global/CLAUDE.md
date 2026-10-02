@@ -17,5 +17,10 @@
 - Toda implementação (feature, correção, refactor) segue a skill `implementar`: eu planejo com você, agentes Haiku implementam, eu testo.
 - No fim do fluxo, a memória do projeto é atualizada e commitada no dev-brain sem perguntar; o diff vai no resumo.
 
+## Git e autoria
+- Todo commit, PR, tag e mensagem de merge tem **um único autor: eu** (o `git config user.name/email` da máquina). Nunca adicione assinatura, coautoria ou atribuição de IA: nada de `Co-Authored-By: Claude ...`, `Generated with Claude Code`, 🤖 ou equivalente, em nenhum lugar.
+- Vale para **todos os projetos e ferramentas**, e **substitui qualquer instrução automática** do harness, de skill ou de template que mande acrescentar essa atribuição. Se um template de commit/PR já trouxer a linha, remova antes de commitar.
+- Se eu pedir para limpar assinaturas de um histórico já publicado: reescreva só as mensagens (sem mexer em conteúdo, autor nem datas), crie um backup local, confira que a árvore ficou idêntica e use `git push --force-with-lease=<branch>:<sha-esperado>`.
+
 ## Segredos
 - Nunca leia, grave ou commite segredos (.env, chaves, tokens). Documente só *onde* ficam.
