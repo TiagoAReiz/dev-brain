@@ -93,8 +93,10 @@
   color: var(--ui-accent);
 }
 
-.dbh-btn:disabled {
-  opacity: 0.5;
+/* Desabilitado: cor muted (≈6:1 sobre --ui-bg-soft), sem opacidade no botão inteiro, que derrubava o contraste. */
+.dbh-btn:disabled,
+.dbh-btn:disabled .dbh-ico {
+  color: var(--ui-muted);
   cursor: default;
 }
 
