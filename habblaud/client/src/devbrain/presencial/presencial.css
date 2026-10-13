@@ -219,6 +219,7 @@ html.modo-presencial .ui-empty {
   flex: none;
   max-width: 45%;
   overflow: hidden;
+  font-size: 14px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -228,6 +229,7 @@ html.modo-presencial .ui-empty {
   min-width: 0;
   overflow: hidden;
   color: var(--ui-muted);
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -238,12 +240,9 @@ html.modo-presencial .ui-empty {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.dbp-agente__motivo {
-  margin-top: 4px;
-  padding-left: 18px;
+/* Agente esperando: a atividade mostra só o motivo, em âmbar. */
+.dbp-agente--espera .dbp-agente__atividade {
   color: var(--st-waiting);
-  font-size: 12px;
-  overflow-wrap: anywhere;
 }
 
 /* Subagente: recuo com guia vertical à esquerda. */
@@ -280,8 +279,8 @@ html.modo-presencial .ui-empty {
 .dbp-ponto {
   position: relative;
   flex: none;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   margin-right: 2px;
   border-radius: 50%;
   background: var(--ui-text);
@@ -346,4 +345,14 @@ html.modo-presencial .ui-empty {
   border: 1px solid color-mix(in srgb, var(--ui-accent) 55%, transparent);
   border-radius: var(--radius-sm);
   font: 500 12px/1.2 var(--font-ui);
+}
+
+/* Feed no rodapé: sem avatar (escondido acima), a grade da linha perde uma coluna. */
+html.modo-presencial .ui-feed__row {
+  grid-template-columns: 58px 78px 16px minmax(0, 118px) 18px minmax(0, 1fr);
+}
+@media (max-width: 600px) {
+  html.modo-presencial .ui-feed__row {
+    grid-template-columns: 70px 18px minmax(0, 1fr);
+  }
 }

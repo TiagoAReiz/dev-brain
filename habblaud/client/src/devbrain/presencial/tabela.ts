@@ -18,7 +18,6 @@ interface NoAgente {
   nome: HTMLElement;
   atividade: HTMLElement;
   desde: HTMLElement;
-  motivo: HTMLElement;
   responder: HTMLButtonElement;
 }
 
@@ -234,7 +233,6 @@ export class TabelaPresencial implements UiComponent {
     const nome = h('span', { class: 'dbp-agente__nome' });
     const atividade = h('span', { class: 'dbp-agente__atividade' });
     const desde = h('span', { class: 'dbp-agente__desde' });
-    const motivo = h('p', { class: 'dbp-agente__motivo', hidden: true });
     const responder = h('button', {
       class: 'dbp-responder',
       type: 'button',
@@ -251,10 +249,9 @@ export class TabelaPresencial implements UiComponent {
       'li',
       { class: 'dbp-agente', tabIndex: 0, on: { click: () => this.selecionar(id) } },
       h('div', { class: 'dbp-agente__linha' }, ponto, nome, atividade, desde, responder),
-      motivo,
     );
     li.dataset.key = id;
-    return { li, ponto, nome, atividade, desde, motivo, responder };
+    return { li, ponto, nome, atividade, desde, responder };
   }
 
   private atualizarAgente(a: NoAgente, ag: AgenteCartao): void {
@@ -262,14 +259,15 @@ export class TabelaPresencial implements UiComponent {
     const pc = `dbp-ponto dbp-ponto--${ag.status}`;
     if (a.ponto.className !== pc) a.ponto.className = pc;
     setAttr(a.ponto, 'title', ag.statusTexto);
-    setText(a.atividade, ag.atividade);
-    setTitle(a.atividade, ag.atividade);
+    // Esperando com motivo: só o motivo (a atividade repetiria "Precisa de você: ...").
+    const texto = ag.motivo ?? ag.atividade;
+    setText(a.atividade, texto);
+    setTitle(a.atividade, texto);
     setText(a.desde, ag.desde);
     a.li.classList.toggle('dbp-agente--sub', ag.sub);
     a.li.classList.toggle('dbp-agente--calmo', ag.status === 'idle' || ag.status === 'done');
     a.li.classList.toggle('dbp-agente--urgente', ag.urgente);
-    setText(a.motivo, ag.motivo ?? '');
-    setHidden(a.motivo, !ag.motivo);
+    a.li.classList.toggle('dbp-agente--espera', !!ag.motivo);
     setHidden(a.responder, !ag.responder);
   }
 }
