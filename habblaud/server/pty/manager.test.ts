@@ -480,3 +480,83 @@ describe('PtyManager: prompt e finalização confirmada', () => {
     await rejects(s.manager.stopAndWait(`acc:${PID}`), 409);
   });
 });
+
+describe('PtyManager: contas do Codex', () => {
+  interface Call { file: string; args: string[]; env: NodeJS.ProcessEnv }
+  function setupCodex(over: Partial<PtyManagerOptions> = {}): { manager: PtyManager; calls: Call[] } {
+    const calls: Call[] = [];
+    const manager = new PtyManager({
+      spawn: (file, args, o) => {
+        calls.push({ file, args, env: o.env });
+        return new FakeProc(9100 + calls.length);
+      },
+      claudeBin: process.execPath,
+      codexBin: process.execPath,
+      accounts: () => [
+        { id: 'cl', dir: join(tmpdir(), 'cl'), isDefault: false },
+        { id: 'cx', dir: join(tmpdir(), 'cx'), isDefault: false, provider: 'codex' },
+        { id: 'cxd', dir: join(tmpdir(), 'cxd'), isDefault: true, provider: 'codex' },
+      ],
+      agent: () => ({ id: 'cx:4242', kind: 'main', account: 'cx', sessionId: SESSION, cwd: tmpdir() }),
+      onChange: () => {},
+      env: { CLAUDE_CONFIG_DIR: '/x', CODEX_HOME: '/y', CLAUDECODE: '1', PATH: '/bin' },
+      ...over,
+    });
+    return { manager, calls };
+  }
+
+  it('conta codex abre o codexBin com -- prompt, CODEX_HOME da conta e sem CLAUDE_CONFIG_DIR', () => {
+    const s = setupCodex({ codexBin: process.execPath, claudeBin: '/nao/existe/claude' });
+    s.manager.create({ cwd: tmpdir(), account: 'cx', prompt: 'faça isso' });
+    expect(s.calls[0].file).toBe(process.execPath);
+    expect(s.calls[0].args).toEqual(['--', 'faça isso']);
+    expect(s.calls[0].env.CODEX_HOME).toBe(join(tmpdir(), 'cx'));
+    expect('CLAUDE_CONFIG_DIR' in s.calls[0].env).toBe(false);
+    expect('CLAUDECODE' in s.calls[0].env).toBe(false);
+    s.manager.create({ cwd: tmpdir(), account: 'cx' });
+    expect(s.calls[1].args).toEqual([]);
+  });
+
+  it('conta codex padrão apaga o CODEX_HOME', () => {
+    const s = setupCodex();
+    s.manager.create({ cwd: tmpdir(), account: 'cxd' });
+    expect('CODEX_HOME' in s.calls[0].env).toBe(false);
+    expect('CLAUDE_CONFIG_DIR' in s.calls[0].env).toBe(false);
+  });
+
+  it('conta codex sem codexBin executável falha com 503 e não abre nada', () => {
+    for (const codexBin of [undefined, join(tmpdir(), 'nao-existe-habblaud-codex')]) {
+      const s = setupCodex({ codexBin });
+      expect(() => s.manager.create({ cwd: tmpdir(), account: 'cx' })).toThrow(PtyError);
+      try {
+        s.manager.create({ cwd: tmpdir(), account: 'cx' });
+      } catch (err) {
+        expect((err as PtyError).status).toBe(503);
+      }
+      expect(s.calls).toHaveLength(0);
+    }
+  });
+
+  it('conta claude segue usando o claudeBin, apaga CODEX_HOME e exige claudeBin', () => {
+    const s = setupCodex({ codexBin: '/nao/existe/codex' });
+    s.manager.create({ cwd: tmpdir(), account: 'cl' });
+    expect(s.calls[0].file).toBe(process.execPath);
+    expect(s.calls[0].env.CLAUDE_CONFIG_DIR).toBe(join(tmpdir(), 'cl'));
+    expect('CODEX_HOME' in s.calls[0].env).toBe(false);
+    const sem = setupCodex({ claudeBin: join(tmpdir(), 'nao-existe-habblaud-claude') });
+    try {
+      sem.manager.create({ cwd: tmpdir(), account: 'cl' });
+      expect.unreachable();
+    } catch (err) {
+      expect((err as PtyError).status).toBe(503);
+    }
+  });
+
+  it('assumir sessão de conta codex é recusado com 400, sem encerrar nada', async () => {
+    const killPid = vi.fn();
+    const s = setupCodex({ killPid });
+    await rejects(s.manager.takeover('cx:4242'), 400);
+    expect(killPid).not.toHaveBeenCalled();
+    expect(s.calls).toHaveLength(0);
+  });
+});
