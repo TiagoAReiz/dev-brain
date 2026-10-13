@@ -1809,9 +1809,8 @@ Expected: JSON de saúde com status ok.
 
 - [ ] **Passo 3: instalar o mod no Claude Code**
 
-Run: `cd ~/habblaud && npm run mod:install -- --sem-mensagens && npm run mod:status`
-Expected: mod e `habblaud-permissoes` instalados na conta; `habblaud-mensagens` fora (mandar mensagem aos agentes
-pelo navegador não é necessário agora).
+Run: `cd ~/habblaud && npm run mod:install && npm run mod:status`
+Expected: mod, `habblaud-permissoes` e `habblaud-mensagens` instalados na conta.
 
 - [ ] **Passo 4: documentar no `README.md`**
 
@@ -1827,10 +1826,11 @@ Roda local, em Docker, e só lê os arquivos que o Claude Code já grava.
 ```bash
 git clone https://github.com/marmottajr/habblaud.git ~/habblaud && cd ~/habblaud
 npm install && npm run docker:up        # sobe em http://localhost:4747 e reinicia com o Docker
-npm run mod:install -- --sem-mensagens  # uso de 5h/semanal e aprovar permissões pelo escritório
+npm run mod:install                     # uso de 5h/semanal, aprovar permissões e mandar mensagens pelo escritório
 ```
 
-Atualizar: `git pull && npm install && npm run docker:up`. Desinstalar: `npm run mod:uninstall && npm run docker:down`.
+Atualizar: `git pull && npm install && npm run docker:up`.
+Atenção: o plugin de mensagens deixa qualquer processo local mandar prompts às sessões abertas; com o alias de bypass, isso vira execução sem aprovação. Para ficar sem ele: `npm run mod:install -- --sem-mensagens`. Desinstalar: `npm run mod:uninstall && npm run docker:down`.
 ```
 
 - [ ] **Passo 5: commit**
