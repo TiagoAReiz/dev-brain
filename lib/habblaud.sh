@@ -10,6 +10,16 @@ HB_MARCA="$HB_DADOS/dev-brain-build"
 HB_PID="$HB_DADOS/server.pid"
 HB_UNIT="$HOME/.config/systemd/user/habblaud.service"
 
+# Garante ~/.local/bin no PATH sem passar na frente do que já existe: um `claude` de outro lugar (ex.: o wrapper
+# da empresa) continua tendo prioridade sobre o ~/.local/bin/claude.
+hb_garantir_local_bin() {
+  case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) PATH="$PATH:$HOME/.local/bin" ;;
+  esac
+  export PATH
+}
+
 # HABBLAUD_SEM_SYSTEMD=1 força o modo sem serviço (usado nos testes).
 hb_tem_systemd() {
   [ -z "${HABBLAUD_SEM_SYSTEMD:-}" ] && command -v systemctl >/dev/null 2>&1 \

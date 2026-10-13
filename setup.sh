@@ -39,7 +39,7 @@ if [ -s "$NVM_DIR/nvm.sh" ] && ! command -v node >/dev/null 2>&1; then
   . "$NVM_DIR/nvm.sh"
   set -u
 fi
-export PATH="$HOME/.local/bin:$PATH"
+hb_garantir_local_bin
 for cmd in git gh node npm; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "Falta '$cmd'. Instale e rode o setup.sh de novo." >&2; exit 1; }
 done

@@ -25,7 +25,7 @@ if [ -s "$NVM_DIR/nvm.sh" ] && ! command -v node >/dev/null 2>&1; then
   . "$NVM_DIR/nvm.sh"
   set -u
 fi
-export PATH="$HOME/.local/bin:$PATH"
+hb_garantir_local_bin
 
 etapa "dev-brain"
 if [ -n "$(git -C "$DEV_BRAIN_HOME" status --porcelain)" ]; then

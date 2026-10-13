@@ -46,4 +46,8 @@ hb_precisa_build || falha "com commit novo (marca velha) deveria precisar de bui
 hb_instalar_servico
 [ ! -e "$HB_UNIT" ] || falha "não deveria criar unit sem systemd"
 
+# ~/.local/bin entra no PATH só se faltar, e no fim: não pode passar na frente de outro claude (ex.: o do nexus)
+[ "$(PATH="/opt/nexus/bin:$HOME/.local/bin:/usr/bin" bash -c ". '$raiz/lib/habblaud.sh'; hb_garantir_local_bin; printf %s \"\$PATH\"")" = "/opt/nexus/bin:$HOME/.local/bin:/usr/bin" ] || falha "PATH com ~/.local/bin não deveria mudar"
+[ "$(PATH="/opt/nexus/bin:/usr/bin" bash -c ". '$raiz/lib/habblaud.sh'; hb_garantir_local_bin; printf %s \"\$PATH\"")" = "/opt/nexus/bin:/usr/bin:$HOME/.local/bin" ] || falha "~/.local/bin deveria entrar no fim"
+
 printf 'ok: lib/habblaud.sh\n'
