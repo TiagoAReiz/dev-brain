@@ -23,6 +23,7 @@ memory/README.md      # índice de projetos
 memory/<projeto>/     # README, arquitetura, estado-atual, decisoes, roadmap, specs/
 docs/                 # specs e planos do próprio dev-brain
 exemplos/sandbox/     # repo de teste do time de agentes
+habblaud/             # Habblaud (git subtree, nosso fork): escritório visual dos agentes
 tests/                # node --test 'tests/*.test.cjs' && bash tests/*.test.sh
 ```
 
@@ -116,9 +117,19 @@ O [Habblaud](https://github.com/marmottajr/habblaud) mostra as sessões e subage
 em pixel art (`http://localhost:4747`): quem está trabalhando, quem precisa de você e o uso de 5h/semanal.
 Roda local e só lê os arquivos que o Claude Code já grava.
 
+Ele vive **dentro do dev-brain**, em `habblaud/`, como `git subtree` (licença MIT em `habblaud/LICENSE`): é o nosso
+fork, com as nossas mudanças versionadas junto com o resto. Para trazer novidades do original:
+
 ```bash
-git clone https://github.com/marmottajr/habblaud.git ~/habblaud && cd ~/habblaud
-npm install
+git -C ~/dev-brain remote add habblaud-upstream https://github.com/marmottajr/habblaud.git   # uma vez
+git -C ~/dev-brain subtree pull --prefix=habblaud habblaud-upstream main --squash
+```
+
+Instalar numa máquina:
+
+```bash
+cd ~/dev-brain/habblaud
+npm install && npm approve-scripts node-pty && npm rebuild node-pty
 npm run docker:up        # macOS/WSL; no Linux nativo, veja abaixo
 npm run mod:install      # uso de 5h/semanal, aprovar permissões e mandar mensagens pelo escritório
 ```
@@ -127,7 +138,7 @@ npm run mod:install      # uso de 5h/semanal, aprovar permissões e mandar mensa
 se o seu usuário tiver outro UID (`id -u`). Nesse caso, rode em modo Node como serviço do seu usuário:
 
 ```bash
-cd ~/habblaud && npm run build
+cd ~/dev-brain/habblaud && npm run build
 # o systemd do usuário não enxerga o PATH do nvm: grava o caminho absoluto do node
 mkdir -p ~/.config/systemd/user && cat > ~/.config/systemd/user/habblaud.service <<UNIT
 [Unit]
@@ -135,7 +146,7 @@ Description=Habblaud
 After=network.target
 
 [Service]
-WorkingDirectory=%h/habblaud
+WorkingDirectory=%h/dev-brain/habblaud
 ExecStart=$(command -v node) dist/server/index.js
 Environment=HABBLAUD_HOST=127.0.0.1
 Environment=HABBLAUD_PTY=1
@@ -149,8 +160,7 @@ systemctl --user daemon-reload && systemctl --user enable --now habblaud
 ```
 
 `HABBLAUD_PTY=1` liga o terminal interativo e o botão **Novo agente** (controlar e abrir sessões pelo escritório);
-o `PATH` copiado faz as sessões abertas por lá acharem `claude`, `node` e os bins do dev-brain. Antes, libere o
-`node-pty`: `npm approve-scripts node-pty && npm rebuild node-pty`. Mesmo aviso das mensagens: qualquer programa local
+o `PATH` copiado faz as sessões abertas por lá acharem `claude`, `node` e os bins do dev-brain. Mesmo aviso das mensagens: qualquer programa local
 que fale com `localhost:4747` ganha esse controle. Ditado por voz: `sudo apt install ffmpeg` + `whisper-cli` e um modelo em `~/.local/share/whisper/`.
 
 O serviço sobe no seu login. Para subir também sem login (máquina remota): `sudo loginctl enable-linger $USER`.
