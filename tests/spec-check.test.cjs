@@ -135,3 +135,7 @@ test('CLI: spec inválida lista os erros e sai com 1', () => {
   assert.equal(r.status, 1);
   assert.match(r.stderr, /^- tarefa 1: depende de id inexistente \(9\)/m);
 });
+
+test('titulo com quebra de linha é erro (vira mensagem de commit)', () => {
+  assert.match(erros({ tarefas: [t(1, { titulo: 'linha 1\nlinha 2' })], gates: GATES }), /titulo deve ter uma linha/);
+});

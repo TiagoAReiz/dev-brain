@@ -106,7 +106,7 @@ Toda implementação vira trabalho de um time:
    Claude in Chrome no Linux/macOS) e fecha a memória com a tabela de métricas.
 
 Depois do seu "ok" na spec, o time roda sozinho até o resumo. Acompanhe pelo `/workflows` ou pelo Habblaud.
-Subagentes ficam em `global/agents/`: `dev-rapido`, `dev`, `gate`, `commit`, `revisor`, `qa-browser`.
+Subagentes ficam em `global/agents/`: `dev-rapido`, `dev`, `gate`, `revisor`, `qa-browser`. O commit é um script montado pelo `time.js` (sem LLM escrevendo a mensagem) e falha se aparecer atribuição de IA.
 
 O `project start` mostra o `estado-atual.md` do projeto ao abrir.
 

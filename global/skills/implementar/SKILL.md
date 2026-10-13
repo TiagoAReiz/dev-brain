@@ -11,7 +11,7 @@ Divisão de trabalho:
 - **Você (agente da sessão):** entende, planeja com o usuário, escreve a spec, valida com o `spec-check`, dispara o time,
   faz a leitura final e a QA e fecha a memória. **Você não escreve código do projeto.**
 - **Time (workflow `time-de-agentes`):** `dev-rapido` (Haiku) e `dev` (Sonnet) implementam, `gate` roda os comandos,
-  `commit` commita por tarefa e `revisor` (Sonnet) revisa cada onda.
+  o commit por tarefa é um script determinístico (falha se aparecer atribuição de IA) e `revisor` (Sonnet) revisa cada onda.
 - **QA:** `qa-browser` (Sonnet), no fim.
 
 Se o usuário pedir explicitamente para você mesmo codar, obedeça e pule o time.

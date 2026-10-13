@@ -37,7 +37,7 @@ global/agents/                  -> symlink em ~/.claude/agents/<nome>.md
   dev.md           sonnet   implementa tarefa M; 3º degrau do P; correção do gate de onda
   gate.md          haiku    roda comandos de gate; devolve exit code e cauda da saída, sem opinar
   revisor.md       sonnet   revisa a onda contra a spec; veredito estruturado por tarefa
-  commit.md        haiku    commita uma tarefa por vez, só os arquivos dela
+  (commit: sem agente; script determinístico no time.js, ver Validação)
   qa-browser.md    sonnet   executa o roteiro de QA no navegador certo para o ambiente
 global/workflows/time.js        Workflow: ondas -> dev -> gate -> commit -> revisão -> escada
 bin/spec-check                  valida tarefas/gates e calcula as ondas (stdin JSON -> stdout JSON)
@@ -135,7 +135,7 @@ Por onda, em ordem:
    - dev devolve `status: spec_invalida` → `bloqueada` na hora, sem gastar degrau (`motivo: spec`).
 2. **Barreira**; tarefas cujas dependências bloquearam viram `pulada`.
 3. **Gate da onda** (agente `gate`). Falhou → 1 correção com `dev` olhando a onda inteira → gate de novo → falhou de novo: onda `bloqueada`, ondas seguintes não rodam.
-4. **Commit** — um agente `commit`, um commit por tarefa pronta, em ordem de id, `git add` só dos `arquivos` da tarefa (mais arquivos novos que o dev reportou dentro do escopo); mensagem `<titulo> (tarefa <id>)`. Sem push.
+4. **Commit** — script montado pelo `time.js` e executado pelo agente `gate` (sem LLM escrevendo a mensagem; falha se o commit sair com atribuição de IA), um commit por tarefa pronta, em ordem de id, `git add` só dos `arquivos` da tarefa (mais arquivos novos que o dev reportou dentro do escopo); mensagem `<titulo> (tarefa <id>)`. Sem push.
 5. **Revisão** — agente `revisor` com a spec e `git diff` dos commits da onda; veredito por tarefa `{aprovada, problemas: [{arquivo, linha, evidencia, correcao}]}`.
    Reprovada → volta à escada nos degraus restantes (se não restar nenhum, usa 1 tentativa extra com `dev`) levando os problemas → gate de tarefa → commit `fix: <titulo> (tarefa <id>)` → revisão só dela. Reprovada 2 vezes → `bloqueada` (`motivo: revisao`).
 
@@ -206,3 +206,12 @@ E2E no `exemplos/sandbox` (cópia em diretório temporário), workflow `wf_8e870
   - a 1ª execução falhou com `agent type 'gate' not found` (agentes instalados com a sessão já aberta; o registro recarregou depois sozinho);
   - isso revelou dois bugs, corrigidos: exceção de agente dentro do pipeline deixava a tarefa `pendente` (tratada como pronta) e exceção no gate derrubava o workflow. Agora vira `bloqueada` com motivo `erro`;
   - Habblaud em modo Node (systemd do usuário) no Linux nativo, porque o container (UID 1000) não lê `~/.claude` com permissão 700.
+
+### Demonstração (2026-10-13): commit vira script determinístico
+
+Execução com 4 tarefas (ondas `[1, 2, 4]` e `[3]`, 14 agentes, 97 s): as 4 tarefas `ok` com Haiku de primeira e 17/17 testes,
+mas o commit da tarefa 3 saiu com `Co-Authored-By: Claude Haiku`. O agente `commit` (LLM) seguiu a instrução de
+atribuição do harness e ignorou a do `commit.md`. Correção: o agente `commit` foi removido. O `time.js` monta o script
+de commit (arquivos entre aspas, mensagem em heredoc com aspas, falha com exit 3 se o commit tiver `co-authored-by` ou
+`generated with`), codifica em base64 e o agente `gate` só executa `echo … | base64 -d | bash`. O `spec-check` passou a
+rejeitar título com quebra de linha. Coberto por `tests/workflow-sim.test.cjs`, incluindo um teste que roda o script num repo git real.

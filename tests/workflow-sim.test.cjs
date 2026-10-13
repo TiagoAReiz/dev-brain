@@ -19,6 +19,12 @@ const pipeline = (itens, ...estagios) => Promise.all(itens.map(async (item, i) =
   return r;
 }));
 
+// Commit: o gate recebe `echo '<base64>' | base64 -d | bash`; devolve o script decodificado ou null.
+const scriptDeCommit = (prompt) => {
+  const m = prompt.match(/echo '([A-Za-z0-9+/=]+)' \| base64 -d \| bash/);
+  return m ? Buffer.from(m[1], 'base64').toString('utf8') : null;
+};
+
 const tarefa = (id, extra = {}) => ({
   id, titulo: `T${id}`, tamanho: 'P', arquivos: [`src/t${id}.js`], depende: [], aceite: ['ok'],
   failsafe: false, gate: `gate-tarefa ${id}`, ...extra,
@@ -34,10 +40,11 @@ async function simular({ tarefas, ondas, comportamento = () => undefined }) {
     const r = await comportamento(tipo, prompt, opts, chamadas);
     if (r !== undefined) return r;
     if (tipo === 'dev-rapido' || tipo === 'dev') return { status: 'pronto', arquivos: [], resumo: 'feito' };
-    if (tipo === 'gate') return { ok: true, exit_code: 0, saida: '' };
-    if (tipo === 'commit') {
-      const n = (prompt.match(/^\d+\. mensagem:/gm) || []).length;
-      return { commits: Array.from({ length: n }, (_, indice) => ({ indice, sha: `c${++sha}` })), erro: null };
+    if (tipo === 'gate') {
+      const script = scriptDeCommit(prompt);
+      if (!script) return { ok: true, exit_code: 0, saida: '' };
+      const idx = [...script.matchAll(/echo "SHA (\d+) \$\(/g)].map((m) => m[1]);
+      return { ok: true, exit_code: 0, saida: idx.map((i) => `SHA ${i} c${++sha}`).join('\n') };
     }
     if (tipo === 'revisor') {
       const ids = [...prompt.matchAll(/- tarefa (\d+)/g)].map((m) => Number(m[1]));
@@ -89,7 +96,7 @@ test('escada esgotada: P sobe até sonnet e bloqueia; dependente é pulada', asy
   assert.deepEqual(porId[1].modelos, ['haiku', 'haiku', 'sonnet']);
   assert.equal(porId[2].status, 'pulada');
   assert.equal(porId[2].motivo, 'depende de 1');
-  assert.ok(!chamadas.some((c) => c.opts.agentType === 'commit'), 'nada para commitar');
+  assert.ok(!chamadas.some((c) => scriptDeCommit(c.prompt)), 'nada para commitar');
 });
 
 test('spec inválida bloqueia na hora, sem gastar degrau', async () => {
@@ -194,9 +201,53 @@ test('tarefa bloqueada tem as alterações guardadas em stash antes do gate da o
   assert.ok(porId[2].pendencias.some((p) => p.includes('git stash')));
 });
 
-test('commit recebe um arquivo por linha, entre aspas', async () => {
-  const { chamadas } = await simular({ tarefas: [tarefa(1, { arquivos: ['src/a b.js', 'src/c.js'] })], ondas: [[1]] });
-  const commit = chamadas.find((c) => c.opts.agentType === 'commit').prompt;
-  assert.match(commit, /^ {3}- 'src\/a b\.js'$/m);
-  assert.match(commit, /^ {3}- 'src\/c\.js'$/m);
+test('commit é um script determinístico: arquivos entre aspas, mensagem em heredoc e trava contra atribuição', async () => {
+  const { chamadas, porId } = await simular({
+    tarefas: [tarefa(1, { titulo: 'Rota `POST /x` com $HOME e "aspas" — ação', arquivos: ['src/a b.js', 'src/c.js'] })],
+    ondas: [[1]],
+  });
+  const commits = chamadas.map((c) => scriptDeCommit(c.prompt)).filter(Boolean);
+  assert.equal(commits.length, 1);
+  const script = commits[0];
+  assert.match(script, /^git add -A -- 'src\/a b\.js' 2>\/dev\/null \|\| true$/m);
+  assert.match(script, /^git add -A -- 'src\/c\.js' 2>\/dev\/null \|\| true$/m);
+  assert.ok(script.includes("git commit -q -F - <<'MSG_0'\nRota `POST /x` com $HOME e \"aspas\" — ação (tarefa 1)\nMSG_0\n"), script);
+  assert.match(script, /co-authored-by\|generated with/);
+  assert.equal(chamadas.find((c) => scriptDeCommit(c.prompt)).opts.agentType, 'gate');
+  assert.deepEqual(porId[1].commits, ['c1']);
+});
+
+test('commit que falha (ex.: atribuição de IA detectada) bloqueia por commit', async () => {
+  const { porId } = await simular({
+    tarefas: [tarefa(1)], ondas: [[1]],
+    comportamento: (tipo, prompt) => {
+      if (tipo === 'gate' && scriptDeCommit(prompt)) return { ok: false, exit_code: 3, saida: 'ATRIBUICAO 0' };
+    },
+  });
+  assert.equal(porId[1].status, 'bloqueada');
+  assert.equal(porId[1].motivo, 'commit');
+  assert.match(porId[1].pendencias[0], /ATRIBUICAO 0/);
+});
+
+test('integração: o script de commit roda num repo git de verdade', async () => {
+  const { execFileSync } = require('node:child_process');
+  const os = require('node:os');
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'commit-'));
+  const git = (...a) => execFileSync('git', ['-C', repo, ...a], { encoding: 'utf8' });
+  git('init', '-q', '-b', 'main');
+  git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'base');
+  fs.mkdirSync(path.join(repo, 'src'));
+  fs.writeFileSync(path.join(repo, 'src', 'a b.js'), 'x');
+  fs.writeFileSync(path.join(repo, 'src', 'fora.js'), 'não é da tarefa');
+  const titulo = 'Ação `rm -rf /` com $HOME e "aspas"';
+  const { chamadas } = await simular({ tarefas: [tarefa(1, { titulo, arquivos: ['src/a b.js', 'src/nao-existe.js'] })], ondas: [[1]] });
+  const cmd = chamadas.map((c) => c.prompt.match(/echo '[A-Za-z0-9+/=]+' \| base64 -d \| bash/)).find(Boolean)[0];
+  const saida = execFileSync('bash', ['-c', cmd], {
+    cwd: repo, encoding: 'utf8',
+    env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' },
+  });
+  assert.match(saida, /^SHA 0 [0-9a-f]{7,}$/m);
+  assert.equal(git('log', '-1', '--format=%B').trim(), `${titulo} (tarefa 1)`);
+  assert.equal(git('show', '--name-only', '--format=', 'HEAD').trim(), 'src/a b.js');
+  assert.match(git('status', '--porcelain'), /\?\? src\/fora\.js/);
 });

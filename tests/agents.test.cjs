@@ -6,7 +6,7 @@ const path = require('node:path');
 
 const DIR = path.join(__dirname, '..', 'global', 'agents');
 const ESPERADOS = {
-  'dev-rapido': 'haiku', dev: 'sonnet', gate: 'haiku', commit: 'haiku', revisor: 'sonnet', 'qa-browser': 'sonnet',
+  'dev-rapido': 'haiku', dev: 'sonnet', gate: 'haiku', revisor: 'sonnet', 'qa-browser': 'sonnet',
 };
 
 function frontmatter(texto) {
@@ -34,8 +34,3 @@ test('nenhum agente sobrando', () => {
   assert.deepEqual(achados, Object.keys(ESPERADOS).sort());
 });
 
-test('commit usa heredoc com aspas na mensagem (sem expansão de shell)', () => {
-  const texto = fs.readFileSync(path.join(DIR, 'commit.md'), 'utf8');
-  assert.match(texto, /commit -F - <<'MSG'/);
-  assert.doesNotMatch(texto, /commit -m "/);
-});

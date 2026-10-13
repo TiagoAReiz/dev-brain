@@ -24,21 +24,6 @@ const GATE_SCHEMA = {
   properties: { ok: { type: 'boolean' }, exit_code: { type: 'integer' }, saida: { type: 'string' } },
   required: ['ok', 'exit_code', 'saida'],
 }
-const COMMIT_SCHEMA = {
-  type: 'object',
-  properties: {
-    commits: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: { indice: { type: 'integer' }, sha: { type: ['string', 'null'] } },
-        required: ['indice', 'sha'],
-      },
-    },
-    erro: { type: ['string', 'null'] },
-  },
-  required: ['commits', 'erro'],
-}
 const REVISAO_SCHEMA = {
   type: 'object',
   properties: {
@@ -166,23 +151,57 @@ async function escada(t, fase, falhaInicial, permitirExtra, motivoFalha) {
   }
 }
 
+// base64 de texto UTF-8 (o script do Workflow não tem Buffer nem btoa garantidos).
+function base64(texto) {
+  const bytes = []
+  for (const ch of texto) {
+    const c = ch.codePointAt(0)
+    if (c < 0x80) bytes.push(c)
+    else if (c < 0x800) bytes.push(0xc0 | (c >> 6), 0x80 | (c & 63))
+    else if (c < 0x10000) bytes.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63))
+    else bytes.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63))
+  }
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+  let s = ''
+  for (let i = 0; i < bytes.length; i += 3) {
+    const n = (bytes[i] << 16) | ((bytes[i + 1] || 0) << 8) | (bytes[i + 2] || 0)
+    s += A[n >> 18] + A[(n >> 12) & 63]
+    s += i + 1 < bytes.length ? A[(n >> 6) & 63] : '='
+    s += i + 2 < bytes.length ? A[n & 63] : '='
+  }
+  return s
+}
+
+// Commit determinístico: o script é montado aqui e o agente `gate` só executa (em base64, para nada ser reescrito).
+// Nenhum LLM escreve a mensagem, e o script falha se o commit sair com atribuição de IA.
+function scriptCommit(itens) {
+  const linhas = ['set -e']
+  itens.forEach((c, i) => {
+    for (const a of c.arquivos) linhas.push(`git add -A -- ${aspas(a)} 2>/dev/null || true`)
+    linhas.push(
+      'if git diff --cached --quiet; then',
+      `  echo "SHA ${i} -"`,
+      'else',
+      `  git commit -q -F - <<'MSG_${i}'`,
+      c.mensagem,
+      `MSG_${i}`,
+      `  if git log -1 --format=%B | grep -qiE 'co-authored-by|generated with'; then echo "ATRIBUICAO ${i}"; exit 3; fi`,
+      `  echo "SHA ${i} $(git rev-parse --short HEAD)"`,
+      'fi',
+    )
+  })
+  return `${linhas.join('\n')}\n`
+}
+
 // itens: [{id|null, mensagem, arquivos}]. Devolve null se deu certo, ou o texto do erro.
 async function commitar(itens, fase, label) {
   if (!itens.length) return null
-  const corpo = itens.map((c, i) => [
-    `${i}. mensagem: ${c.mensagem}`,
-    '   arquivos:',
-    ...c.arquivos.map((a) => `   - ${aspas(a)}`),
-  ].join('\n')).join('\n')
-  const r = await chamar(`Repo: ${repo}\nCommits, nesta ordem:\n${corpo}`, {
-    agentType: 'commit', model: 'haiku', effort: 'low', schema: COMMIT_SCHEMA, label, phase: fase,
-  })
-  if (!r) return 'o agente de commit não respondeu'
-  for (const c of r.commits) {
-    const item = itens[c.indice]
-    if (item && item.id !== null && c.sha) estados[item.id].commits.push(c.sha)
+  const g = await rodarGate(`echo '${base64(scriptCommit(itens))}' | base64 -d | bash`, label, fase)
+  for (const m of g.saida.matchAll(/^SHA (\d+) (\S+)$/gm)) {
+    const item = itens[Number(m[1])]
+    if (item && item.id !== null && m[2] !== '-') estados[item.id].commits.push(m[2])
   }
-  return r.erro || null
+  return g.ok ? null : `commit falhou (exit ${g.exit_code}):\n${g.saida}`
 }
 
 // Tarefa bloqueada não pode deixar código pela metade no disco (quebraria o gate da onda e as ondas seguintes).
