@@ -138,6 +138,8 @@ After=network.target
 WorkingDirectory=%h/habblaud
 ExecStart=$(command -v node) dist/server/index.js
 Environment=HABBLAUD_HOST=127.0.0.1
+Environment=HABBLAUD_PTY=1
+Environment="PATH=$PATH"
 Restart=on-failure
 
 [Install]
@@ -145,6 +147,11 @@ WantedBy=default.target
 UNIT
 systemctl --user daemon-reload && systemctl --user enable --now habblaud
 ```
+
+`HABBLAUD_PTY=1` liga o terminal interativo e o botão **Novo agente** (controlar e abrir sessões pelo escritório);
+o `PATH` copiado faz as sessões abertas por lá acharem `claude`, `node` e os bins do dev-brain. Antes, libere o
+`node-pty`: `npm approve-scripts node-pty && npm rebuild node-pty`. Mesmo aviso das mensagens: qualquer programa local
+que fale com `localhost:4747` ganha esse controle. Ditado por voz: `sudo apt install ffmpeg` + `whisper-cli` e um modelo em `~/.local/share/whisper/`.
 
 O serviço sobe no seu login. Para subir também sem login (máquina remota): `sudo loginctl enable-linger $USER`.
 Trocou a versão do node no nvm? Rode o bloco de novo.
