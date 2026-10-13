@@ -19,11 +19,14 @@ const pipeline = (itens, ...estagios) => Promise.all(itens.map(async (item, i) =
   return r;
 }));
 
-// Commit: o gate recebe `echo '<base64>' | base64 -d | bash`; devolve o script decodificado ou null.
-const scriptDeCommit = (prompt) => {
-  const m = prompt.match(/echo '([A-Za-z0-9+/=]+)' \| base64 -d \| bash/);
-  return m ? Buffer.from(m[1], 'base64').toString('utf8') : null;
+// Todo comando do gate chega como `echo '<base64>' | base64 -d | bash`: devolve o comando decodificado.
+const comandoDoGate = (prompt) => {
+  const m = prompt.match(/^Comando:\necho '([A-Za-z0-9+/=]+)' \| base64 -d \| bash$/m);
+  if (!m) throw new Error(`gate sem comando em base64: ${prompt}`);
+  return Buffer.from(m[1], 'base64').toString('utf8');
 };
+// Script de commit (já decodificado) ou null.
+const scriptDeCommit = (cmd) => (cmd.includes('git commit') ? cmd : null);
 
 const tarefa = (id, extra = {}) => ({
   id, titulo: `T${id}`, tamanho: 'P', arquivos: [`src/t${id}.js`], depende: [], aceite: ['ok'],
@@ -35,6 +38,7 @@ async function simular({ tarefas, ondas, comportamento = () => undefined }) {
   const chamadas = [];
   let sha = 0;
   const agent = async (prompt, opts) => {
+    if (opts.agentType === 'gate') prompt = comandoDoGate(prompt);
     chamadas.push({ prompt, opts });
     const tipo = opts.agentType;
     const r = await comportamento(tipo, prompt, opts, chamadas);
@@ -188,13 +192,13 @@ test('tarefa bloqueada tem as alterações guardadas em stash antes do gate da o
   const { porId } = await simular({
     tarefas: [tarefa(1), tarefa(2, { arquivos: ['src/a b.js'] })], ondas: [[1, 2]],
     comportamento: (tipo, prompt) => {
-      if (tipo === 'gate') ordem.push(prompt.split('\n').slice(1).join(' '));
+      if (tipo === 'gate') ordem.push(prompt);
       if (tipo === 'gate' && prompt.includes("gate-tarefa 2")) return { ok: false, exit_code: 1, saida: 'quebrado' };
     },
   });
   assert.equal(porId[2].status, 'bloqueada');
   assert.equal(porId[1].status, 'ok');
-  const iStash = ordem.findIndex((c) => c.includes('git stash push -u') && c.includes("-- 'src/a b.js'"));
+  const iStash = ordem.findIndex((c) => c.includes('git stash push -u') && c.includes("'src/a b.js'"));
   const iOnda = ordem.findIndex((c) => c.includes('gate-onda'));
   assert.ok(iStash !== -1, `sem stash: ${JSON.stringify(ordem)}`);
   assert.ok(iStash < iOnda, 'stash precisa vir antes do gate da onda');
@@ -241,8 +245,8 @@ test('integração: o script de commit roda num repo git de verdade', async () =
   fs.writeFileSync(path.join(repo, 'src', 'fora.js'), 'não é da tarefa');
   const titulo = 'Ação `rm -rf /` com $HOME e "aspas"';
   const { chamadas } = await simular({ tarefas: [tarefa(1, { titulo, arquivos: ['src/a b.js', 'src/nao-existe.js'] })], ondas: [[1]] });
-  const cmd = chamadas.map((c) => c.prompt.match(/echo '[A-Za-z0-9+/=]+' \| base64 -d \| bash/)).find(Boolean)[0];
-  const saida = execFileSync('bash', ['-c', cmd], {
+  const script = chamadas.map((c) => scriptDeCommit(c.prompt)).find(Boolean);
+  const saida = execFileSync('bash', ['-c', script], {
     cwd: repo, encoding: 'utf8',
     env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' },
   });
@@ -262,4 +266,31 @@ test('SHA do commit é lido mesmo se o gate comentar a saída', async () => {
     },
   });
   assert.deepEqual(porId[1].commits, ['29f4d3d']);
+});
+
+test('gate da tarefa vai em base64 e chega igual ao da spec (nada reescreve o comando)', async () => {
+  const { chamadas } = await simular({ tarefas: [tarefa(1, { gate: "npx vitest related 'a b.ts' --run && npm run -s typecheck" })], ondas: [[1]] });
+  assert.ok(chamadas.some((c) => c.opts.agentType === 'gate' && c.prompt === "npx vitest related 'a b.ts' --run && npm run -s typecheck"));
+});
+
+test('integração: o stash guarda o que existe e ignora caminho inexistente', async () => {
+  const { execFileSync } = require('node:child_process');
+  const os = require('node:os');
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'stash-'));
+  const git = (...a) => execFileSync('git', ['-C', repo, ...a], { encoding: 'utf8' });
+  git('init', '-q', '-b', 'main');
+  git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'base');
+  fs.mkdirSync(path.join(repo, 'src'));
+  fs.writeFileSync(path.join(repo, 'src', 'a b.js'), 'quebrado');
+  const { chamadas } = await simular({
+    tarefas: [tarefa(1, { arquivos: ['src/a b.js'] })], ondas: [[1]],
+    comportamento: (tipo, prompt) => {
+      if (tipo === 'dev-rapido' || tipo === 'dev') return { status: 'pronto', arquivos: ['outro/prefixo/src/a b.js'], resumo: 'x' };
+      if (tipo === 'gate' && prompt.includes('gate-tarefa 1')) return { ok: false, exit_code: 1, saida: 'falhou' };
+    },
+  });
+  const script = chamadas.map((c) => c.prompt).find((p) => p.includes('git stash push'));
+  execFileSync('bash', ['-c', script], { cwd: repo, encoding: 'utf8' });
+  assert.equal(git('status', '--porcelain').trim(), '');
+  assert.match(git('stash', 'list'), /time-de-agentes: tarefa 1 bloqueada/);
 });

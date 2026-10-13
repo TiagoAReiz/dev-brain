@@ -99,8 +99,9 @@ function promptDev(t, falha) {
   ].filter(Boolean).join('\n\n')
 }
 
+// O comando vai em base64: nem o agente nem hooks do shell (ex.: proxies que reescrevem `npx vitest`) mudam o que roda.
 async function rodarGate(cmd, label, fase) {
-  const g = await chamar(`Diretório: ${repo}\nComando:\n${cmd}`, {
+  const g = await chamar(`Diretório: ${repo}\nComando:\necho '${base64(cmd)}' | base64 -d | bash`, {
     agentType: 'gate', model: 'haiku', effort: 'low', schema: GATE_SCHEMA, label, phase: fase,
   })
   return g || { ok: false, exit_code: -1, saida: 'o agente de gate não respondeu' }
@@ -172,7 +173,7 @@ function base64(texto) {
   return s
 }
 
-// Commit determinístico: o script é montado aqui e o agente `gate` só executa (em base64, para nada ser reescrito).
+// Commit determinístico: o script é montado aqui e o agente `gate` só executa (ver rodarGate).
 // Nenhum LLM escreve a mensagem, e o script falha se o commit sair com atribuição de IA.
 function scriptCommit(itens) {
   const linhas = ['set -e']
@@ -196,7 +197,7 @@ function scriptCommit(itens) {
 // itens: [{id|null, mensagem, arquivos}]. Devolve null se deu certo, ou o texto do erro.
 async function commitar(itens, fase, label) {
   if (!itens.length) return null
-  const g = await rodarGate(`echo '${base64(scriptCommit(itens))}' | base64 -d | bash`, label, fase)
+  const g = await rodarGate(scriptCommit(itens), label, fase)
   // Tolera texto em volta (o agente às vezes comenta a saída); vale o 1º SHA de cada item.
   const vistos = new Set()
   for (const m of g.saida.matchAll(/SHA (\d+) ([0-9a-f]{7,40})\b/g)) {
@@ -215,7 +216,13 @@ async function guardar(ts, fase) {
     const arqs = estados[t.id].arquivos
     if (!arqs.length) continue
     const msg = `time-de-agentes: tarefa ${t.id} bloqueada`
-    const g = await rodarGate(`git stash push -u -m '${msg}' -- ${arqs.map(aspas).join(' ')}`, `t${t.id} guardar`, fase)
+    // Só caminhos que existem ou estão no índice: um caminho inexistente faria o stash inteiro falhar.
+    const script = [
+      'set --',
+      ...arqs.map((a) => `if [ -e ${aspas(a)} ] || git ls-files --error-unmatch -- ${aspas(a)} >/dev/null 2>&1; then set -- "$@" ${aspas(a)}; fi`),
+      `if [ $# -gt 0 ]; then git stash push -u -m '${msg}' -- "$@"; else echo 'nada para guardar'; fi`,
+    ].join('\n')
+    const g = await rodarGate(`${script}\n`, `t${t.id} guardar`, fase)
     estados[t.id].pendencias.push(g.ok
       ? `alterações guardadas em git stash ("${msg}")`
       : `não consegui guardar as alterações em git stash: ${g.saida}`)

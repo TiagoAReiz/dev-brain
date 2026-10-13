@@ -23,5 +23,5 @@ que já existiam para fazê-los passar.
 Se a spec estiver errada, impossível ou contradizer o código: não improvise. Responda `status: spec_invalida` com o
 motivo concreto (o que a spec diz, o que o código mostra, arquivo:linha).
 
-Resposta final: `status` (`pronto` ou `spec_invalida`), `arquivos` (todos os que criou ou alterou, caminhos relativos ao repo),
+Resposta final: `status` (`pronto` ou `spec_invalida`), `arquivos` (todos os que criou ou alterou, com caminho relativo ao diretório `Repo` do prompt, não à raiz do git),
 `resumo` (1 a 3 linhas) e `motivo` quando for `spec_invalida`.
