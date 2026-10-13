@@ -44,7 +44,7 @@ async function simular({ tarefas, ondas, comportamento = () => undefined }) {
       const script = scriptDeCommit(prompt);
       if (!script) return { ok: true, exit_code: 0, saida: '' };
       const idx = [...script.matchAll(/echo "SHA (\d+) \$\(/g)].map((m) => m[1]);
-      return { ok: true, exit_code: 0, saida: idx.map((i) => `SHA ${i} c${++sha}`).join('\n') };
+      return { ok: true, exit_code: 0, saida: idx.map((i) => `SHA ${i} ${(++sha).toString(16).padStart(7, '0')}`).join('\n') };
     }
     if (tipo === 'revisor') {
       const ids = [...prompt.matchAll(/- tarefa (\d+)/g)].map((m) => Number(m[1]));
@@ -214,7 +214,7 @@ test('commit é um script determinístico: arquivos entre aspas, mensagem em her
   assert.ok(script.includes("git commit -q -F - <<'MSG_0'\nRota `POST /x` com $HOME e \"aspas\" — ação (tarefa 1)\nMSG_0\n"), script);
   assert.match(script, /co-authored-by\|generated with/);
   assert.equal(chamadas.find((c) => scriptDeCommit(c.prompt)).opts.agentType, 'gate');
-  assert.deepEqual(porId[1].commits, ['c1']);
+  assert.deepEqual(porId[1].commits, ['0000001']);
 });
 
 test('commit que falha (ex.: atribuição de IA detectada) bloqueia por commit', async () => {
@@ -250,4 +250,16 @@ test('integração: o script de commit roda num repo git de verdade', async () =
   assert.equal(git('log', '-1', '--format=%B').trim(), `${titulo} (tarefa 1)`);
   assert.equal(git('show', '--name-only', '--format=', 'HEAD').trim(), 'src/a b.js');
   assert.match(git('status', '--porcelain'), /\?\? src\/fora\.js/);
+});
+
+test('SHA do commit é lido mesmo se o gate comentar a saída', async () => {
+  const { porId } = await simular({
+    tarefas: [tarefa(1)], ondas: [[1]],
+    comportamento: (tipo, prompt) => {
+      if (tipo === 'gate' && scriptDeCommit(prompt)) {
+        return { ok: true, exit_code: 0, saida: 'Execução 1: saída "SHA 0 29f4d3d", exit 0.\nExecução 2: SHA 0 -' };
+      }
+    },
+  });
+  assert.deepEqual(porId[1].commits, ['29f4d3d']);
 });

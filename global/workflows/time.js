@@ -197,9 +197,13 @@ function scriptCommit(itens) {
 async function commitar(itens, fase, label) {
   if (!itens.length) return null
   const g = await rodarGate(`echo '${base64(scriptCommit(itens))}' | base64 -d | bash`, label, fase)
-  for (const m of g.saida.matchAll(/^SHA (\d+) (\S+)$/gm)) {
+  // Tolera texto em volta (o agente às vezes comenta a saída); vale o 1º SHA de cada item.
+  const vistos = new Set()
+  for (const m of g.saida.matchAll(/SHA (\d+) ([0-9a-f]{7,40})\b/g)) {
     const item = itens[Number(m[1])]
-    if (item && item.id !== null && m[2] !== '-') estados[item.id].commits.push(m[2])
+    if (vistos.has(m[1]) || !item || item.id === null) continue
+    vistos.add(m[1])
+    estados[item.id].commits.push(m[2])
   }
   return g.ok ? null : `commit falhou (exit ${g.exit_code}):\n${g.saida}`
 }
