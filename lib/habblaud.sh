@@ -20,6 +20,25 @@ hb_garantir_local_bin() {
   export PATH
 }
 
+# Deixa node, npm e claude no PATH mesmo fora de um terminal (ex.: aberto pelo menu de apps, com o PATH mínimo):
+# 1) o PATH gravado na unit do serviço, na frente (é o PATH do seu shell no setup; pode haver um node antigo do
+# sistema em /usr/bin); 2) sem unit e sem node, o nvm. Depois garante o ~/.local/bin.
+hb_carregar_ambiente() {
+  if [ -f "$HB_UNIT" ]; then
+    local p
+    p="$(sed -n 's/^Environment="PATH=\(.*\)"$/\1/p' "$HB_UNIT" | head -1)"
+    [ -z "$p" ] || PATH="$p:$PATH"
+  fi
+  if ! command -v node >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
+    export NVM_DIR="$HOME/.nvm"
+    case $- in
+      *u*) set +u; . "$NVM_DIR/nvm.sh"; set -u ;;   # nvm.sh não é compatível com set -u
+      *) . "$NVM_DIR/nvm.sh" ;;
+    esac
+  fi
+  hb_garantir_local_bin
+}
+
 # HABBLAUD_SEM_SYSTEMD=1 força o modo sem serviço (usado nos testes).
 hb_tem_systemd() {
   [ -z "${HABBLAUD_SEM_SYSTEMD:-}" ] && command -v systemctl >/dev/null 2>&1 \
@@ -132,6 +151,15 @@ hb_status() {
     console.log(`  terminal: ${d.pty ? "ligado" : "desligado"} · mensagens: ${d.messages ? "ligadas" : "desligadas"} · permissões: ${d.permissions ? "ligadas" : "desligadas"}`);
     for (const l of s) console.log(`  ${l}`);
   ' "$HB_URL"
+}
+
+# Abre como janela de app (sem barra de endereço) num navegador Chromium; senão, no navegador padrão.
+hb_abrir_app() {
+  local c
+  for c in google-chrome google-chrome-stable chromium chromium-browser microsoft-edge brave-browser; do
+    if command -v "$c" >/dev/null 2>&1; then "$c" --app="$HB_URL" >/dev/null 2>&1 & return 0; fi
+  done
+  hb_abrir
 }
 
 hb_abrir() {

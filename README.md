@@ -11,6 +11,7 @@ Roda em **Linux, macOS e WSL**. No Windows, use dentro do WSL (o Git Bash não c
 install-tools.sh      # instala ferramentas de dev no Ubuntu/WSL (apt + nvm + claude) e configura bash/fish
 bootstrap.sh          # configura a máquina (symlinks + checagem de deps)
 new-project.sh        # cria memória + CLAUDE.md de um projeto novo
+bin/brain             # comando do dia a dia (sobe, desce, status, setup) -> ~/.local/bin/brain
 bin/project           # CLI create/start/exit de projetos em ~/workfolder -> ~/.local/bin/project
 bin/spec-check        # valida as tarefas de uma spec e calcula as ondas -> ~/.local/bin/spec-check
 setup.sh              # configura um PC novo do zero (chama os scripts abaixo)
@@ -29,25 +30,43 @@ habblaud/             # Habblaud (git subtree, nosso fork): escritório visual d
 tests/                # node --test 'tests/*.test.cjs' && for t in tests/*.test.sh; do bash "$t"; done
 ```
 
-## Máquina nova
+## Uso: `brain`
+
+Um comando para o dia a dia, de qualquer pasta (bash ou fish), ou pelo ícone **Dev Brain** no menu de aplicativos:
 
 ```bash
-gh repo clone TiagoAReiz/dev-brain ~/dev-brain   # ou: git clone git@github.com:TiagoAReiz/dev-brain.git ~/dev-brain
-~/dev-brain/setup.sh                              # configura tudo; pede a senha do sudo e o login do GitHub
+brain            # sobe tudo (pull do dev-brain, Habblaud) e abre o Habblaud numa janela de app
+brain down       # desce: desliga o Habblaud e oferece salvar a memória no GitHub
+brain status     # o que está no ar e o que falta enviar
+brain setup      # configura este PC (o mesmo que ./setup.sh)
 ```
 
-O `setup.sh` é idempotente e faz, em ordem: ferramentas (`install-tools.sh`), login no GitHub, links (`bootstrap.sh`)
-e o Habblaud (build, serviço `systemd --user` e mod no Claude Code). No fim lista o que ficou para fazer na mão.
-Máquina que já tem as ferramentas: `./setup.sh --sem-ferramentas`.
+Os projetos você abre pelo Habblaud ou com `project start` / `project create` (ver "Dia a dia: `project`").
+O log da última subida fica em `~/.habblaud/brain.log`.
 
-## Subir e descer
+## PC novo
+
+O repo é privado, então o primeiro passo é o login no GitHub:
+
+```bash
+sudo apt install -y gh && gh auth login
+gh repo clone TiagoAReiz/dev-brain ~/dev-brain && ~/dev-brain/setup.sh
+```
+
+O `setup.sh` é idempotente e faz, em ordem: ferramentas (`install-tools.sh`), login no GitHub, links (`bootstrap.sh`:
+`CLAUDE.md`, skills, subagentes, `brain`, `project`, `spec-check` e o ícone **Dev Brain** no menu) e o Habblaud
+(build, serviço `systemd --user` e mod no Claude Code). No fim lista o que ficou para fazer na mão
+(login no Claude Code, `git config`, chave SSH). Máquina que já tem as ferramentas: `brain setup --sem-ferramentas`.
+
+## Por baixo do `brain`
 
 ```bash
 ~/dev-brain/up.sh      # pull do dev-brain, rebuild do Habblaud se o código mudou, liga e abre http://localhost:4747
 ~/dev-brain/down.sh    # desliga o Habblaud (até o próximo up), oferece commit/push da memória, avisa de projetos no workfolder
 ```
 
-Com systemd do usuário o Habblaud volta sozinho no login, até você rodar o `down.sh`. Sem systemd (macOS), só pelo `up.sh`.
+Com systemd do usuário o Habblaud volta sozinho no login, até você rodar o `brain down`. Sem systemd (macOS), só pelo `brain`.
+O `brain` funciona aberto pelo menu (sem o PATH do terminal) porque reaproveita o PATH gravado no serviço pelo setup.
 
 ### Partes avulsas
 

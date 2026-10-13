@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# brain: o comando do dia a dia do dev-brain.
+#   brain           sobe tudo (dev-brain + Habblaud) e abre o Habblaud numa janela de app
+#   brain down      desce: desliga o Habblaud e oferece salvar a memória no GitHub
+#   brain status    mostra o que está no ar e o que falta enviar
+#   brain setup     configura este PC (setup.sh; aceita --sem-ferramentas)
+set -uo pipefail
+
+DEV_BRAIN_HOME="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+export DEV_BRAIN_HOME
+# shellcheck source=../lib/habblaud.sh
+. "$DEV_BRAIN_HOME/lib/habblaud.sh"
+hb_carregar_ambiente
+LOG="$HB_DADOS/brain.log"
+
+ok() { printf '  \033[32m✓\033[0m %s\n' "$*"; }
+erro() { printf '  \033[31m✗\033[0m %s\n' "$*" >&2; }
+# Sem terminal (aberto pelo menu de apps), avisa por notificação da área de trabalho.
+avisar() { [ -t 1 ] || { command -v notify-send >/dev/null 2>&1 && notify-send "Dev Brain" "$*"; }; }
+
+ajuda() { sed -n 's/^#   //p' "$(readlink -f "${BASH_SOURCE[0]}")"; }
+
+subir() {
+  mkdir -p "$HB_DADOS"
+  printf '\n  \033[1mDev Brain\033[0m\n'
+  if "$DEV_BRAIN_HOME/up.sh" --sem-navegador >"$LOG" 2>&1; then
+    ok "dev-brain em $(git -C "$DEV_BRAIN_HOME" log -1 --format='%h %s' 2>/dev/null | cut -c1-60)"
+    ok "Habblaud no ar em $HB_URL"
+    hb_abrir_app
+  else
+    erro "não subiu; últimas linhas de $LOG:"
+    tail -15 "$LOG" >&2
+    avisar "Não subiu. Veja $LOG"
+    exit 1
+  fi
+}
+
+status() {
+  if hb_no_ar; then hb_status; else echo "  Habblaud fora do ar ($HB_URL). Para subir: brain"; fi
+  local mud pend
+  mud="$(git -C "$DEV_BRAIN_HOME" status --porcelain 2>/dev/null | wc -l)"
+  pend="$(git -C "$DEV_BRAIN_HOME" log '@{u}..' --oneline 2>/dev/null | wc -l)"
+  echo "  dev-brain: $mud mudança(s) local(is), $pend commit(s) sem push"
+}
+
+case "${1:-}" in
+  "") subir ;;
+  down) exec "$DEV_BRAIN_HOME/down.sh" ;;
+  status) status ;;
+  setup) shift; exec "$DEV_BRAIN_HOME/setup.sh" "$@" ;;
+  ajuda | help | -h | --help) ajuda ;;
+  *) echo "brain: comando desconhecido '$1'" >&2; ajuda >&2; exit 1 ;;
+esac

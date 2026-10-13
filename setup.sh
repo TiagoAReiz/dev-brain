@@ -31,15 +31,8 @@ elif command -v apt-get >/dev/null 2>&1; then
 else
   echo "  sem apt: instale na mão git, gh, node 22+, fzf e o Claude Code (https://claude.ai/install.sh)"
 fi
-# Deixa o node do nvm e o ~/.local/bin visíveis para o resto deste script.
-export NVM_DIR="$HOME/.nvm"
-if [ -s "$NVM_DIR/nvm.sh" ] && ! command -v node >/dev/null 2>&1; then
-  set +u
-  # shellcheck source=/dev/null
-  . "$NVM_DIR/nvm.sh"
-  set -u
-fi
-hb_garantir_local_bin
+# Deixa node, npm e ~/.local/bin visíveis para o resto deste script.
+hb_carregar_ambiente
 for cmd in git gh node npm; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "Falta '$cmd'. Instale e rode o setup.sh de novo." >&2; exit 1; }
 done

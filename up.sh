@@ -18,14 +18,7 @@ for arg in "$@"; do
   esac
 done
 
-export NVM_DIR="$HOME/.nvm"
-if [ -s "$NVM_DIR/nvm.sh" ] && ! command -v node >/dev/null 2>&1; then
-  set +u
-  # shellcheck source=/dev/null
-  . "$NVM_DIR/nvm.sh"
-  set -u
-fi
-hb_garantir_local_bin
+hb_carregar_ambiente
 
 etapa "dev-brain"
 if [ -n "$(git -C "$DEV_BRAIN_HOME" status --porcelain)" ]; then

@@ -100,6 +100,26 @@ for cmd in "$DEV_BRAIN_HOME"/bin/*; do
   [ -f "$cmd" ] && [ -x "$cmd" ] || continue
   link "$cmd" "$HOME/.local/bin/$(basename "$cmd")"
 done
+# Atalho "Dev Brain" no menu de aplicativos (Linux com área de trabalho): roda o bin/brain.
+if [ "$OS" = "linux" ]; then
+  desk="$HOME/.local/share/applications/dev-brain.desktop"
+  atalho="[Desktop Entry]
+Type=Application
+Name=Dev Brain
+Comment=Sobe o dev-brain e abre o Habblaud
+Exec=$DEV_BRAIN_HOME/bin/brain
+Icon=$DEV_BRAIN_HOME/habblaud/client/public/assets/brand/icon-192.png
+Terminal=false
+Categories=Development;"
+  if [ "$(cat "$desk" 2>/dev/null)" = "$atalho" ]; then
+    skipped_items+=("atalho ok: ${desk/#$HOME/\~}")
+  else
+    mkdir -p "$(dirname "$desk")"
+    printf '%s\n' "$atalho" > "$desk"
+    done_items+=("atalho no menu de apps: Dev Brain")
+  fi
+fi
+
 case ":$PATH:" in
   *":$HOME/.local/bin:"*) ;;
   *) manual_items+=("adicionar ~/.local/bin ao PATH (o install-tools.sh faz isso)") ;;
