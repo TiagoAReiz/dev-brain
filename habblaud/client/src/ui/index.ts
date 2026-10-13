@@ -39,6 +39,7 @@ import { TopBar } from './topbar';
 import { UpdateBanner } from './update';
 import { InterruptorPresencial } from '../devbrain/presencial/interruptor';
 import { CicloDia } from '../devbrain/dia';
+import { grupoCabecalho } from '../devbrain/cabecalho/botao';
 import { TabelaPresencial } from '../devbrain/presencial/tabela';
 import { FreeArea } from './viewport';
 import { tr } from '../../../shared/i18n';
@@ -157,14 +158,12 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi)
   topbar = new TopBar(ctx);
   const interruptor = new InterruptorPresencial(ctx);
   const tabela = new TabelaPresencial(ctx);
-  topbar.addPanelButton(interruptor.button);
   sidebar = new Sidebar(ctx);
   // Terminal interativo (Claude Code de verdade, dentro do navegador): abrir, assumir e encerrar sessões.
   const pty = new PtyPanel(ctx);
   const terminal = new TerminalPanel(ctx, pty);
   const cicloDia = new CicloDia(ctx, (info) => pty.openPty(info));
-  topbar.addPanelButton(cicloDia.finalizarButton);
-  topbar.addPanelButton(cicloDia.iniciarButton);
+  topbar.addPanelButton(grupoCabecalho(cicloDia.iniciarButton, cicloDia.finalizarButton, interruptor.button));
   // Histórico de sessões (terminal): botão no grupo dos painéis da barra superior.
   const history = new HistoryPopover(ctx, terminal);
   topbar.panelGroup.prepend(history.button);

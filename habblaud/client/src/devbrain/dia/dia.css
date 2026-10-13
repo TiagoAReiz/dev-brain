@@ -24,7 +24,6 @@
 .dbd-button { font: inherit; padding: 9px 13px; white-space: normal; text-align: left; cursor: pointer; }
 .dbd-primary { color: var(--ui-accent); border-color: var(--ui-accent); }
 .dbd-button:disabled, .dbd-input:disabled { cursor: default; opacity: .55; }
-.dbd-header-button { font-size: 12px; max-width: 240px; }
 .dbd-form { display: grid; gap: 10px; }
 .dbd-input { min-width: 0; width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--ui-line-strong); background: var(--ui-bg-soft); color: var(--ui-text); font: inherit; }
 .dbd-input option { background: var(--ui-bg-solid); color: var(--ui-text); }
@@ -45,5 +44,4 @@
   .dbd-body { padding: 14px; }
   .dbd-status { padding-inline: 14px; }
   .dbd-actions { flex-direction: column; }
-  .dbd-header-button { max-width: 160px; }
 }

@@ -2,6 +2,7 @@ import type { PtyInfo } from '../../../../shared/types';
 import { access } from '../../net/access';
 import type { UiContext } from '../../ui/context';
 import { h } from '../../ui/dom';
+import { botaoCabecalho, dicaIndisponivel, ICONE_FINALIZAR, ICONE_INICIAR, type BotaoCabecalho } from '../cabecalho/botao';
 import { diaApi, type Inicio, type Relatorio, type Repo, type Resumo } from './api';
 import { filtrarRepos, motivoIndisponivel, validarNome } from './modelo';
 import './dia.css';
@@ -11,6 +12,8 @@ export class CicloDia {
   readonly iniciarButton: HTMLButtonElement;
   readonly finalizarButton: HTMLButtonElement;
   readonly el: HTMLDialogElement;
+  private readonly iniciar: BotaoCabecalho;
+  private readonly finalizar: BotaoCabecalho;
   private readonly title = h('h2', { attrs: { id: 'dbd-title' } });
   private readonly body = h('div', { class: 'dbd-body' });
   private readonly message = h('p', { class: 'dbd-status', role: 'status', attrs: { 'aria-live': 'polite' } });
@@ -21,10 +24,13 @@ export class CicloDia {
   private epoch = 0;
 
   constructor(private readonly ctx: UiContext, private readonly abrirPty: (info: PtyInfo) => void) {
-    this.iniciarButton = this.button('Iniciar dia', () => this.openStart());
-    this.finalizarButton = this.button('Finalizar dia', () => void this.openFinish());
+    this.iniciar = botaoCabecalho({ rotulo: 'Iniciar dia', dica: 'Iniciar dia', icone: ICONE_INICIAR, variante: 'acento' });
+    this.finalizar = botaoCabecalho({ rotulo: 'Finalizar dia', dica: 'Finalizar dia', icone: ICONE_FINALIZAR });
+    this.iniciarButton = this.iniciar.el;
+    this.finalizarButton = this.finalizar.el;
+    this.iniciarButton.addEventListener('click', () => this.openStart());
+    this.finalizarButton.addEventListener('click', () => void this.openFinish());
     for (const b of [this.iniciarButton, this.finalizarButton]) {
-      b.classList.add('dbd-header-button');
       b.setAttribute('aria-haspopup', 'dialog');
       b.setAttribute('aria-controls', 'dbd-dialog');
     }
@@ -46,12 +52,11 @@ export class CicloDia {
 
   render(): void {
     const reason = this.unavailable();
-    for (const [button, label] of [[this.iniciarButton, 'Iniciar dia'], [this.finalizarButton, 'Finalizar dia']] as const) {
-      button.disabled = !!reason || this.busy || this.done;
-      const hint = this.done ? 'Dia encerrado. Abra brain para começar novamente.' : reason;
-      // O motivo continua visível mesmo para quem não usa hover ou leitor de tela.
-      button.textContent = hint ? `${label} · ${hint}` : label;
-      button.title = hint || label;
+    const hint = this.done ? 'Dia encerrado. Abra brain para começar novamente.' : reason;
+    const desabilitado = !!reason || this.busy || this.done;
+    for (const [botao, rotulo] of [[this.iniciar, 'Iniciar dia'], [this.finalizar, 'Finalizar dia']] as const) {
+      // O motivo vai só para title/aria-label; o rótulo visível não muda.
+      botao.atualizar({ rotulo, dica: dicaIndisponivel(rotulo, hint), desabilitado });
     }
     if (this.el.open && !this.done) {
       for (const control of this.body.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>('button,input,select')) {

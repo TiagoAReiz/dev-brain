@@ -1,7 +1,7 @@
 // Interruptor do modo presencial: troca o prédio pela tabela, pausa o mundo e neutraliza o favicon.
 import type { WorldApi } from '../../world/api';
 import type { UiComponent, UiContext } from '../../ui/context';
-import { h } from '../../ui/dom';
+import { botaoCabecalho, ICONE_PRESENCIAL, type BotaoCabecalho } from '../cabecalho/botao';
 import { faviconPresencial } from './discricao';
 
 /** href originais dos <link rel="icon">, guardados enquanto o modo está ligado. */
@@ -23,23 +23,25 @@ export function aplicarModo(ligado: boolean, world: WorldApi): void {
 
 export class InterruptorPresencial implements UiComponent {
   readonly button: HTMLButtonElement;
+  private readonly botao: BotaoCabecalho;
   private aplicado: boolean | null = null;
 
   constructor(private ctx: UiContext) {
-    this.button = h('button', {
-      class: 'dbp-interruptor ui-btn',
-      type: 'button',
-      text: 'presencial',
-      attrs: { 'aria-pressed': 'false' },
-      on: { click: () => this.ctx.updatePrefs({ presencial: !this.ctx.prefs.presencial }) },
-    }) as HTMLButtonElement;
+    this.botao = botaoCabecalho({
+      rotulo: 'Presencial',
+      dica: 'Modo presencial: troca o prédio por um painel sóbrio',
+      icone: ICONE_PRESENCIAL,
+    });
+    this.button = this.botao.el;
+    this.button.addEventListener('click', () => this.ctx.updatePrefs({ presencial: !this.ctx.prefs.presencial }));
+    this.botao.atualizar({ ligado: false });
   }
 
   render(): void {
     const ligado = this.ctx.prefs.presencial;
     if (ligado === this.aplicado) return;
     this.aplicado = ligado;
-    this.button.setAttribute('aria-pressed', String(ligado));
+    this.botao.atualizar({ ligado });
     aplicarModo(ligado, this.ctx.world);
   }
 }
