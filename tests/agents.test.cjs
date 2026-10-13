@@ -33,3 +33,9 @@ test('nenhum agente sobrando', () => {
   const achados = fs.readdirSync(DIR).filter((f) => f.endsWith('.md')).map((f) => f.slice(0, -3)).sort();
   assert.deepEqual(achados, Object.keys(ESPERADOS).sort());
 });
+
+test('commit usa heredoc com aspas na mensagem (sem expansão de shell)', () => {
+  const texto = fs.readFileSync(path.join(DIR, 'commit.md'), 'utf8');
+  assert.match(texto, /commit -F - <<'MSG'/);
+  assert.doesNotMatch(texto, /commit -m "/);
+});

@@ -80,6 +80,8 @@ const resumoOndas = []
 
 const lista = (xs) => xs.map((x) => `- ${x}`).join('\n')
 const textoErro = (e) => (e && e.message) || String(e)
+// Aspas simples de shell (mesma regra do spec-check): it's -> 'it'\''s'
+const aspas = (c) => `'${c.replace(/'/g, "'\\''")}'`
 
 // Chama um agente; se ele lançar (tipo inexistente, erro de API), devolve null como um agente que morreu.
 async function chamar(prompt, opts) {
@@ -167,7 +169,11 @@ async function escada(t, fase, falhaInicial, permitirExtra, motivoFalha) {
 // itens: [{id|null, mensagem, arquivos}]. Devolve null se deu certo, ou o texto do erro.
 async function commitar(itens, fase, label) {
   if (!itens.length) return null
-  const corpo = itens.map((c, i) => `${i}. mensagem: ${c.mensagem}\n   arquivos: ${c.arquivos.join(' ')}`).join('\n')
+  const corpo = itens.map((c, i) => [
+    `${i}. mensagem: ${c.mensagem}`,
+    '   arquivos:',
+    ...c.arquivos.map((a) => `   - ${aspas(a)}`),
+  ].join('\n')).join('\n')
   const r = await chamar(`Repo: ${repo}\nCommits, nesta ordem:\n${corpo}`, {
     agentType: 'commit', model: 'haiku', effort: 'low', schema: COMMIT_SCHEMA, label, phase: fase,
   })
@@ -177,6 +183,20 @@ async function commitar(itens, fase, label) {
     if (item && item.id !== null && c.sha) estados[item.id].commits.push(c.sha)
   }
   return r.erro || null
+}
+
+// Tarefa bloqueada não pode deixar código pela metade no disco (quebraria o gate da onda e as ondas seguintes).
+// Guarda as alterações dela em stash, um de cada vez, para o usuário recuperar se quiser.
+async function guardar(ts, fase) {
+  for (const t of ts) {
+    const arqs = estados[t.id].arquivos
+    if (!arqs.length) continue
+    const msg = `time-de-agentes: tarefa ${t.id} bloqueada`
+    const g = await rodarGate(`git stash push -u -m '${msg}' -- ${arqs.map(aspas).join(' ')}`, `t${t.id} guardar`, fase)
+    estados[t.id].pendencias.push(g.ok
+      ? `alterações guardadas em git stash ("${msg}")`
+      : `não consegui guardar as alterações em git stash: ${g.saida}`)
+  }
 }
 
 async function revisar(ts, fase, rodada) {
@@ -215,6 +235,7 @@ for (let i = 0; i < ondas.length; i++) {
   }
   log(`${fase}: tarefas ${executaveis.map((t) => t.id).join(', ')}`)
   await pipeline(executaveis, (t) => escadaSegura(t, fase, null, false, 'escada'))
+  await guardar(executaveis.filter((t) => estados[t.id].status === 'bloqueada'), fase)
 
   // 2. Barreira: o gate da onda precisa de todas prontas.
   const prontas = executaveis.filter((t) => estados[t.id].status === 'pendente')
@@ -284,6 +305,7 @@ for (let i = 0; i < ondas.length; i++) {
     }
     if (!reprovadas.length) break
     await pipeline(reprovadas, ({ t, problemas }) => escadaSegura(t, fase, `O revisor reprovou:\n${problemas}`, true, 'revisao'))
+    await guardar(reprovadas.map((r) => r.t).filter((t) => estados[t.id].status === 'bloqueada'), fase)
     const corrigidas = reprovadas.map((r) => r.t).filter((t) => estados[t.id].status === 'pendente')
     if (corrigidas.length) {
       houveCorrecao = true

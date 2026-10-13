@@ -76,10 +76,19 @@ Workflow({
 
 ## 5. Ler o resultado e a leitura final
 
-1. Tarefas `bloqueada` por `spec`: corrija a spec, registre a correção na seção "Como ficou" e rode o time de novo
-   **só** com as bloqueadas e as puladas (novo `spec-check` com elas). **1 ciclo.**
-2. Bloqueadas por `escada`, `revisao`, `gate_onda` ou `commit`: vão para o resumo.
-3. Leitura final: `git -C <repo> diff <base>..HEAD`, **uma vez**. Procure o que a revisão por onda não vê: coerência
+1. Tarefas `bloqueada` por `spec`: corrige a spec, registre a correção na seção "Como ficou" e rode o time de novo
+   **só** com as bloqueadas e as puladas (novo `spec-check` com elas). **1 ciclo** (vale também para o item 2).
+2. `bloqueada` por `erro`: falha de ambiente, não do código (ex.: `agent type 'gate' not found` porque os subagentes
+   foram instalados com a sessão já aberta, ou erro de API). Resolva a causa (reabrir a sessão, esperar a API) e rode
+   de novo só com as bloqueadas e as puladas. Sem como resolver: vai para o resumo.
+3. `escada`, `revisao`, `gate_onda` e `commit`: vão para o resumo. As alterações de tarefa bloqueada ficam em
+   `git stash` (mensagem `time-de-agentes: tarefa N bloqueada`): cite no resumo e não apague.
+4. `pulada`: `depende de N` segue a tarefa N; `onda N bloqueada` ou `... falhou` quer dizer que o time parou ali.
+   Entram junto se houver novo ciclo; senão, vão para o resumo.
+5. `gate_pos_revisao` = `falhou` numa onda: as tarefas ficaram `ok` e commitadas, mas a suíte quebrou depois das correções
+   da revisão (a saída está em `saida_gate`). Trate na leitura final abaixo.
+6. Pendência "o revisor não devolveu veredito": a tarefa ficou `ok` sem revisão; leia o diff dela com atenção.
+7. Leitura final: `git -C <repo> diff <base>..HEAD`, **uma vez**. Procure o que a revisão por onda não vê: coerência
    entre ondas, contrato back/front, fuga de escopo, segredo no código, pendências que o workflow registrou.
    Achou algo: acrescente à spec uma seção `## Correção N` com tarefas no mesmo formato (ids continuando a numeração),
    `spec-check` e rode o time com elas. **1 ciclo.**

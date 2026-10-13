@@ -128,14 +128,15 @@ se o seu usuário tiver outro UID (`id -u`). Nesse caso, rode em modo Node como 
 
 ```bash
 cd ~/habblaud && npm run build
-mkdir -p ~/.config/systemd/user && cat > ~/.config/systemd/user/habblaud.service <<'UNIT'
+# o systemd do usuário não enxerga o PATH do nvm: grava o caminho absoluto do node
+mkdir -p ~/.config/systemd/user && cat > ~/.config/systemd/user/habblaud.service <<UNIT
 [Unit]
 Description=Habblaud
 After=network.target
 
 [Service]
 WorkingDirectory=%h/habblaud
-ExecStart=/usr/bin/env node dist/server/index.js
+ExecStart=$(command -v node) dist/server/index.js
 Environment=HABBLAUD_HOST=127.0.0.1
 Restart=on-failure
 
@@ -144,6 +145,9 @@ WantedBy=default.target
 UNIT
 systemctl --user daemon-reload && systemctl --user enable --now habblaud
 ```
+
+O serviço sobe no seu login. Para subir também sem login (máquina remota): `sudo loginctl enable-linger $USER`.
+Trocou a versão do node no nvm? Rode o bloco de novo.
 
 Atualizar: `git pull && npm install && npm run build` (ou `npm run docker:up`), depois `npm run mod:install`.
 Desinstalar: `npm run mod:uninstall` e pare o serviço ou o container.

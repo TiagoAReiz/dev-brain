@@ -102,7 +102,7 @@ test('spec inválida bloqueia na hora, sem gastar degrau', async () => {
   assert.equal(porId[1].status, 'bloqueada');
   assert.equal(porId[1].motivo, 'spec');
   assert.equal(porId[1].tentativas, 1);
-  assert.deepEqual(porId[1].pendencias, ['rota não existe']);
+  assert.equal(porId[1].pendencias[0], 'rota não existe');
 });
 
 test('agente que lança erro bloqueia a tarefa em vez de tratá-la como pronta', async () => {
@@ -175,3 +175,28 @@ test('gate da onda falha: 1 correção com sonnet; se falhar de novo, as ondas s
   assert.equal(porId[2].motivo, 'onda 1 bloqueada');
 });
 
+
+test('tarefa bloqueada tem as alterações guardadas em stash antes do gate da onda', async () => {
+  const ordem = [];
+  const { porId } = await simular({
+    tarefas: [tarefa(1), tarefa(2, { arquivos: ['src/a b.js'] })], ondas: [[1, 2]],
+    comportamento: (tipo, prompt) => {
+      if (tipo === 'gate') ordem.push(prompt.split('\n').slice(1).join(' '));
+      if (tipo === 'gate' && prompt.includes("gate-tarefa 2")) return { ok: false, exit_code: 1, saida: 'quebrado' };
+    },
+  });
+  assert.equal(porId[2].status, 'bloqueada');
+  assert.equal(porId[1].status, 'ok');
+  const iStash = ordem.findIndex((c) => c.includes('git stash push -u') && c.includes("-- 'src/a b.js'"));
+  const iOnda = ordem.findIndex((c) => c.includes('gate-onda'));
+  assert.ok(iStash !== -1, `sem stash: ${JSON.stringify(ordem)}`);
+  assert.ok(iStash < iOnda, 'stash precisa vir antes do gate da onda');
+  assert.ok(porId[2].pendencias.some((p) => p.includes('git stash')));
+});
+
+test('commit recebe um arquivo por linha, entre aspas', async () => {
+  const { chamadas } = await simular({ tarefas: [tarefa(1, { arquivos: ['src/a b.js', 'src/c.js'] })], ondas: [[1]] });
+  const commit = chamadas.find((c) => c.opts.agentType === 'commit').prompt;
+  assert.match(commit, /^ {3}- 'src\/a b\.js'$/m);
+  assert.match(commit, /^ {3}- 'src\/c\.js'$/m);
+});
