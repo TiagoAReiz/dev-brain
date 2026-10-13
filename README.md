@@ -110,6 +110,46 @@ Subagentes ficam em `global/agents/`: `dev-rapido`, `dev`, `gate`, `commit`, `re
 
 O `project start` mostra o `estado-atual.md` do projeto ao abrir.
 
+## Visibilidade: Habblaud
+
+O [Habblaud](https://github.com/marmottajr/habblaud) mostra as sessões e subagentes do Claude Code como um escritório
+em pixel art (`http://localhost:4747`): quem está trabalhando, quem precisa de você e o uso de 5h/semanal.
+Roda local e só lê os arquivos que o Claude Code já grava.
+
+```bash
+git clone https://github.com/marmottajr/habblaud.git ~/habblaud && cd ~/habblaud
+npm install
+npm run docker:up        # macOS/WSL; no Linux nativo, veja abaixo
+npm run mod:install      # uso de 5h/semanal, aprovar permissões e mandar mensagens pelo escritório
+```
+
+**Linux nativo:** o container roda com UID 1000 e não lê `~/.claude/projects` e `~/.claude/sessions` (permissão 700)
+se o seu usuário tiver outro UID (`id -u`). Nesse caso, rode em modo Node como serviço do seu usuário:
+
+```bash
+cd ~/habblaud && npm run build
+mkdir -p ~/.config/systemd/user && cat > ~/.config/systemd/user/habblaud.service <<'UNIT'
+[Unit]
+Description=Habblaud
+After=network.target
+
+[Service]
+WorkingDirectory=%h/habblaud
+ExecStart=/usr/bin/env node dist/server/index.js
+Environment=HABBLAUD_HOST=127.0.0.1
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+UNIT
+systemctl --user daemon-reload && systemctl --user enable --now habblaud
+```
+
+Atualizar: `git pull && npm install && npm run build` (ou `npm run docker:up`), depois `npm run mod:install`.
+Desinstalar: `npm run mod:uninstall` e pare o serviço ou o container.
+Atenção: o plugin de mensagens deixa qualquer processo local mandar prompts às sessões abertas; com o alias de bypass,
+isso vira execução sem aprovação. Para ficar sem ele: `npm run mod:install -- --sem-mensagens`.
+
 ## Atualizando a memória
 
 - O agente propõe atualizar `estado-atual.md` e `decisoes.md` no fim das sessões relevantes e mostra o diff antes de gravar.
