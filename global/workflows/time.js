@@ -79,6 +79,17 @@ const estados = Object.fromEntries(tarefas.map((t) => [t.id, {
 const resumoOndas = []
 
 const lista = (xs) => xs.map((x) => `- ${x}`).join('\n')
+const textoErro = (e) => (e && e.message) || String(e)
+
+// Chama um agente; se ele lançar (tipo inexistente, erro de API), devolve null como um agente que morreu.
+async function chamar(prompt, opts) {
+  try {
+    return await agent(prompt, opts)
+  } catch (e) {
+    log(`${opts.label}: ${textoErro(e)}`)
+    return null
+  }
+}
 
 function bloquear(t, motivo, pendencia) {
   const est = estados[t.id]
@@ -102,10 +113,18 @@ function promptDev(t, falha) {
 }
 
 async function rodarGate(cmd, label, fase) {
-  const g = await agent(`Diretório: ${repo}\nComando:\n${cmd}`, {
+  const g = await chamar(`Diretório: ${repo}\nComando:\n${cmd}`, {
     agentType: 'gate', model: 'haiku', effort: 'low', schema: GATE_SCHEMA, label, phase: fase,
   })
   return g || { ok: false, exit_code: -1, saida: 'o agente de gate não respondeu' }
+}
+
+// Exceção dentro da escada bloqueia a tarefa; sem isso ela ficaria 'pendente' e seria tratada como pronta.
+function escadaSegura(t, fase, falhaInicial, permitirExtra, motivoFalha) {
+  return escada(t, fase, falhaInicial, permitirExtra, motivoFalha).catch((e) => {
+    bloquear(t, 'erro', textoErro(e))
+    return false
+  })
 }
 
 // Sobe a escada da tarefa até o gate passar. true = passou; false = bloqueada (motivo já gravado).
@@ -149,7 +168,7 @@ async function escada(t, fase, falhaInicial, permitirExtra, motivoFalha) {
 async function commitar(itens, fase, label) {
   if (!itens.length) return null
   const corpo = itens.map((c, i) => `${i}. mensagem: ${c.mensagem}\n   arquivos: ${c.arquivos.join(' ')}`).join('\n')
-  const r = await agent(`Repo: ${repo}\nCommits, nesta ordem:\n${corpo}`, {
+  const r = await chamar(`Repo: ${repo}\nCommits, nesta ordem:\n${corpo}`, {
     agentType: 'commit', model: 'haiku', effort: 'low', schema: COMMIT_SCHEMA, label, phase: fase,
   })
   if (!r) return 'o agente de commit não respondeu'
@@ -162,7 +181,7 @@ async function commitar(itens, fase, label) {
 
 async function revisar(ts, fase, rodada) {
   const corpo = ts.map((t) => `- tarefa ${t.id} (${t.titulo}): commits ${estados[t.id].commits.join(' ') || '(nenhum)'}`).join('\n')
-  return agent(`Repo: ${repo}\nSpec: ${spec}\nMemória: ${memoria}\nRevise estas tarefas:\n${corpo}`, {
+  return chamar(`Repo: ${repo}\nSpec: ${spec}\nMemória: ${memoria}\nRevise estas tarefas:\n${corpo}`, {
     agentType: 'revisor', model: 'sonnet', schema: REVISAO_SCHEMA, label: `revisão #${rodada}`, phase: fase,
   })
 }
@@ -195,7 +214,7 @@ for (let i = 0; i < ondas.length; i++) {
     continue
   }
   log(`${fase}: tarefas ${executaveis.map((t) => t.id).join(', ')}`)
-  await pipeline(executaveis, (t) => escada(t, fase, null, false, 'escada'))
+  await pipeline(executaveis, (t) => escadaSegura(t, fase, null, false, 'escada'))
 
   // 2. Barreira: o gate da onda precisa de todas prontas.
   const prontas = executaveis.filter((t) => estados[t.id].status === 'pendente')
@@ -206,7 +225,7 @@ for (let i = 0; i < ondas.length; i++) {
   let g = await rodarGate(gates.onda, `gate onda ${n}`, fase)
   if (!g.ok) {
     info.correcao_onda = true
-    const r = await agent([
+    const r = await chamar([
       `Repo: ${repo}`,
       `Spec (fonte de verdade): ${spec}`,
       `Memória do projeto: ${memoria}`,
@@ -264,7 +283,7 @@ for (let i = 0; i < ondas.length; i++) {
       }
     }
     if (!reprovadas.length) break
-    await pipeline(reprovadas, ({ t, problemas }) => escada(t, fase, `O revisor reprovou:\n${problemas}`, true, 'revisao'))
+    await pipeline(reprovadas, ({ t, problemas }) => escadaSegura(t, fase, `O revisor reprovou:\n${problemas}`, true, 'revisao'))
     const corrigidas = reprovadas.map((r) => r.t).filter((t) => estados[t.id].status === 'pendente')
     if (corrigidas.length) {
       houveCorrecao = true
