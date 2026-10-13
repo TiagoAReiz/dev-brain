@@ -1,0 +1,6 @@
+{
+  "name": "sandbox",
+  "private": true,
+  "type": "commonjs",
+  "scripts": { "test": "bash scripts/testar.sh src/*.js" }
+}
