@@ -25,7 +25,7 @@ export class SoundControl implements UiComponent {
 
   /** Aplica as preferências atuais (interruptor geral, volume, categorias). */
   sync(): void {
-    this.board.configure(this.ctx.prefs.sound, this.ctx.prefs.sounds);
+    this.board.configure(this.ctx.prefs.sound && !this.ctx.prefs.presencial, this.ctx.prefs.sounds);
   }
 
   /** Amostra ao mexer nas configurações (chamada a partir do clique: libera o áudio). */

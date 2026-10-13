@@ -6,6 +6,7 @@ import type { SoundBoard } from '../audio/board';
 import type { UiComponent, UiContext } from './context';
 import { computeCounters } from './model';
 import { tr } from '../../../shared/i18n';
+import { TITULO_NOTIFICACAO, faviconPresencial, textoDiscreto, tituloPresencial } from '../devbrain/presencial/discricao';
 
 const BASE_TITLE = 'Habblaud';
 
@@ -40,7 +41,7 @@ export class Notifier implements UiComponent {
   render(): void {
     // Ao vivo, mesmo durante o timelapse: o título da aba avisa quem precisa de você agora.
     const waiting = computeCounters(this.ctx.store.liveSnapshot).waiting;
-    const title = waiting > 0 ? `(${waiting}) ${BASE_TITLE}` : BASE_TITLE;
+    const title = this.ctx.prefs.presencial ? tituloPresencial(waiting) : waiting > 0 ? `(${waiting}) ${BASE_TITLE}` : BASE_TITLE;
     if (title !== this.lastTitle) {
       this.lastTitle = title;
       document.title = title;
@@ -54,10 +55,11 @@ export class Notifier implements UiComponent {
     else if (n.level === 'success') this.sounds.play('pop');
     if (n.level === 'alert' && prefs.browserNotifications && document.hidden && notificationState() === 'granted') {
       try {
-        const notification = new Notification(tr('Habblaud — precisa de você'), {
-          body: n.text,
+        const discreto = prefs.presencial;
+        const notification = new Notification(discreto ? TITULO_NOTIFICACAO : tr('Habblaud — precisa de você'), {
+          body: discreto ? textoDiscreto(n.text) : n.text,
           tag: n.agentId ?? n.id,
-          icon: '/assets/brand/favicon-32.png',
+          icon: discreto ? faviconPresencial() : '/assets/brand/favicon-32.png',
         });
         notification.onclick = () => {
           window.focus();

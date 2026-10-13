@@ -6,6 +6,7 @@ import { h, iconButton, prefersReducedMotion, setHidden, setText } from './dom';
 import { ICONS } from './icons';
 import { focusPermission } from './permission';
 import { tr } from '../../../shared/i18n';
+import { textoDiscreto } from '../devbrain/presencial/discricao';
 
 const MAX_VISIBLE = 4;
 /** Avisos iguais dentro desta janela viram um só (com contador). */
@@ -84,7 +85,7 @@ export class Toasts implements UiComponent {
       'button',
       { class: 'ui-toast__body', type: 'button', title: n.agentId || n.roomId ? tr('Mostrar no escritório') : '' },
       agent ? createAvatar(agent, 'xs') : null,
-      h('span', { class: 'ui-toast__text', text: n.text }),
+      h('span', { class: 'ui-toast__text', text: this.ctx.prefs.presencial ? textoDiscreto(n.text) : n.text }),
       count,
     );
     body.addEventListener('click', () => {
