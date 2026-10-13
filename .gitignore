@@ -30,3 +30,5 @@ desktop.ini
 
 # Backups gerados pelo bootstrap
 *.bak.*
+habblaud/.vitest/
+habblaud/client/.vitest/
