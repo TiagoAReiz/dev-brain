@@ -77,6 +77,7 @@ function setup(over: Partial<Omit<PtyManagerOptions, 'agent'>> & { agent?: Parti
     procInfo: async (pid) => (alive.has(pid) ? proc : undefined),
     isAlive: (pid) => alive.has(pid),
     sleep: async () => {},
+    descendants: async () => [],
     killPid,
     forceKill,
     ...opts,
@@ -363,4 +364,119 @@ describe('carregar o node-pty e achar o claude', () => {
       expect(claudeBinFrom({ ...env, HABBLAUD_CLAUDE_BIN: 'outro' })).toBeUndefined();
     }),
   );
+});
+
+
+describe('PtyManager: prompt e finalização confirmada', () => {
+  it('passa prompt literal após --, sem interpretar opções ou shell', () => {
+    const s = setup();
+    const prompt = '--resume $(touch nope)\nOlá';
+    s.manager.create({ cwd: tmpdir(), prompt });
+    expect(s.spawned[0].args).toEqual(['--', prompt]);
+    s.manager.create({ cwd: tmpdir() });
+    expect(s.spawned[1].args).toEqual([]);
+  });
+
+  it.each([null, 42, '', '   ', 'x'.repeat(8193), 'a\0b'])('recusa prompt inválido %j antes do spawn', (prompt) => {
+    const s = setup();
+    expect(() => s.manager.create({ cwd: tmpdir(), prompt })).toThrow(/prompt inválido/);
+    expect(s.spawned).toHaveLength(0);
+  });
+
+  it('espera processo externo sair, inclusive depois do sinal', async () => {
+    let sleeping = 0;
+    const s = setup({ killPid: vi.fn(), sleep: async () => { if (++sleeping === 3) s.alive.delete(PID); } });
+    await s.manager.stopAndWait(`acc:${PID}`);
+    expect(sleeping).toBe(3);
+  });
+
+  it('timeout aborta sem matar à força', async () => {
+    const s = setup({ killPid: vi.fn() });
+    await rejects(s.manager.stopAndWait(`acc:${PID}`), 500);
+    expect(s.forceKill).not.toHaveBeenCalled();
+  });
+
+  it('PID reciclado antes do sinal é recusado', async () => {
+    let calls = 0;
+    const s = setup({ procInfo: async () => ({ startMs: ++calls === 1 ? STARTED - 800 : STARTED + 5000, name: 'claude' }) });
+    await rejects(s.manager.stopAndWait(`acc:${PID}`), 409);
+    expect(s.killPid).not.toHaveBeenCalled();
+  });
+
+  it('não espera nem mata PID reciclado depois do sinal', async () => {
+    let startMs = STARTED - 800;
+    const killPid = vi.fn(() => { startMs += 5000; });
+    const s = setup({ killPid, procInfo: async () => ({ startMs, name: 'claude' }) });
+    await s.manager.stopAndWait(`acc:${PID}`);
+    expect(killPid).toHaveBeenCalledOnce();
+    expect(s.forceKill).not.toHaveBeenCalled();
+  });
+
+  it('espera evento exit do próprio PTY', async () => {
+    const proc = new FakeProc(9001);
+    proc.kill = vi.fn();
+    let sleeps = 0;
+    const s = setup({ spawn: () => proc, sleep: async () => { if (++sleeps === 2) proc.exit({ exitCode: 0 }); } });
+    const own = s.manager.create({ cwd: tmpdir() });
+    await s.manager.stopAndWait(own.agentId);
+    expect(sleeps).toBe(2);
+  });
+
+  it('evento exit sem saída real não libera a limpeza', async () => {
+    const proc = new FakeProc(PID);
+    const s = setup({ spawn: () => proc });
+    const own = s.manager.create({ cwd: tmpdir() });
+    await rejects(s.manager.stopAndWait(own.agentId), 500);
+  });
+
+  it('subprocesso vivo bloqueia mesmo depois do pai sair', async () => {
+    const child = { pid: 6000, proc: { startMs: STARTED, name: 'git' } };
+    const s = setup({ descendants: async () => [child], procInfo: async (pid) => pid === child.pid ? child.proc : { startMs: STARTED - 800, name: 'claude' }, isAlive: (pid) => pid === child.pid || s.alive.has(pid) });
+    await rejects(s.manager.stopAndWait(`acc:${PID}`), 500);
+    expect(s.killPid).toHaveBeenCalledOnce();
+    expect(s.forceKill).not.toHaveBeenCalled();
+  });
+
+  it('PTY mantém descendentes pendentes visíveis e pode repetir sem matar PID reciclado', async () => {
+    const proc = new FakeProc(PID);
+    const child = { pid: 6000, proc: { startMs: STARTED, name: 'git' } };
+    let childAlive = true;
+    let rootAlive = true;
+    proc.kill = vi.fn(() => { rootAlive = false; proc.exit({ exitCode: 0 }); });
+    const killPid = vi.fn();
+    const s = setup({ spawn: () => proc, killPid, descendants: async () => [child], isAlive: (pid) => pid === PID ? rootAlive : childAlive, procInfo: async (pid) => pid === child.pid ? child.proc : { startMs: STARTED - 800, name: 'claude' } });
+    const own = s.manager.create({ cwd: tmpdir() });
+    await rejects(s.manager.stopAndWait(own.agentId), 500);
+    expect(s.manager.list()[0].exitedAt).toBeUndefined();
+    childAlive = false;
+    await expect(s.manager.stopAndWait(own.agentId)).resolves.toBeUndefined();
+    expect(proc.kill).toHaveBeenCalledOnce();
+    expect(killPid).not.toHaveBeenCalled();
+    expect(s.manager.list()[0].exitedAt).toBeDefined();
+  });
+
+  it('externo retém filhos no retry mesmo após registro do pai desaparecer', async () => {
+    const child = { pid: 6000, proc: { startMs: STARTED, name: 'git' } };
+    let childAlive = true;
+    const s = setup({ descendants: async () => [child], isAlive: (pid) => pid === child.pid ? childAlive : s.alive.has(pid), procInfo: async (pid) => pid === child.pid ? child.proc : { startMs: STARTED - 800, name: 'claude' } });
+    await rejects(s.manager.stopAndWait(`acc:${PID}`), 500);
+    childAlive = false;
+    await expect(s.manager.stopAndWait(`acc:${PID}`)).resolves.toBeUndefined();
+    expect(s.killPid).toHaveBeenCalledOnce();
+  });
+
+  it('processo sai entre isAlive e procInfo sem falso erro', async () => {
+    let signaled = false;
+    const s = setup({ killPid: vi.fn(() => { signaled = true; }), procInfo: async () => {
+      if (signaled) { s.alive.delete(PID); return undefined; }
+      return { startMs: STARTED - 800, name: 'claude' };
+    } });
+    await expect(s.manager.stopAndWait(`acc:${PID}`)).resolves.toBeUndefined();
+  });
+
+  it('identidade ilegível depois do sinal falha conservadoramente', async () => {
+    let killed = false;
+    const s = setup({ killPid: vi.fn(() => { killed = true; }), procInfo: async () => killed ? undefined : { startMs: STARTED - 800, name: 'claude' } });
+    await rejects(s.manager.stopAndWait(`acc:${PID}`), 409);
+  });
 });

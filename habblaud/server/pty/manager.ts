@@ -9,6 +9,8 @@
 //
 // Segurança: quem controla um terminal destes executa comandos na máquina. O recurso é opt-in (HABBLAUD_PTY=1),
 // as rotas só aceitam conexões do próprio computador (ver http/pty.ts) e ele fica desligado no Docker.
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { chmodSync, readFileSync, statSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createRequire } from 'node:module';
@@ -91,6 +93,8 @@ export interface PtyManagerOptions {
   createScreen?: ScreenFactory;
   isAlive?: (pid: number) => boolean;
   sleep?: (ms: number) => Promise<void>;
+  /** Árvore capturada antes de encerrar; falha impede a limpeza. */
+  descendants?: (pid: number) => Promise<{ pid: number; proc: ProcInfo }[]>;
 }
 
 /** Saída bruta guardada por terminal quando não há o @xterm/headless (ver rawScreen). */
@@ -155,6 +159,8 @@ interface Pty {
   clients: Set<ServerResponse>;
   /** Conectando: guardam a saída nova numa fila até a tela guardada ficar pronta. */
   pending: Map<ServerResponse, string[]>;
+  identity: Promise<ProcInfo | undefined>;
+  cleanupPending?: ExternalProc[];
 }
 
 /** Sessão aberta noutro terminal, conferida: o PID e o que o sistema diz dele. */
@@ -169,6 +175,7 @@ interface SpawnPlan {
   account: PtyAccount;
   cols: number;
   rows: number;
+  prompt?: string;
 }
 
 export class PtyError extends Error {
@@ -183,6 +190,7 @@ export class PtyError extends Error {
 export class PtyManager {
   private ptys = new Map<string, Pty>();
   private seq = 0;
+  private stoppingExternal = new Map<string, { target: ExternalProc; children: ExternalProc[] }>();
   /** "Assumir" em andamento por agente: um duplo clique (ou duas abas) recebe o mesmo resultado. */
   private takeovers = new Map<string, Promise<PtyInfo>>();
   private readonly now: () => number;
@@ -216,13 +224,13 @@ export class PtyManager {
   list(): PtyInfo[] {
     const now = this.now();
     for (const [id, t] of this.ptys) {
-      if (t.info.exitedAt !== undefined && now - t.info.exitedAt > EXITED_KEEP_MS) this.drop(id);
+      if (t.info.exitedAt !== undefined && !t.cleanupPending && now - t.info.exitedAt > EXITED_KEEP_MS) this.drop(id);
     }
-    return [...this.ptys.values()].map((t) => ({ ...t.info }));
+    return [...this.ptys.values()].map((t) => ({ ...t.info, ...(t.cleanupPending ? { exitedAt: undefined } : {}) }));
   }
 
   /** Abre uma sessão nova do Claude Code na pasta (`cwd` absoluto), na conta pedida (ou na padrão). */
-  create(p: { cwd: unknown; account?: unknown; cols?: unknown; rows?: unknown }): PtyInfo {
+  create(p: { cwd: unknown; account?: unknown; cols?: unknown; rows?: unknown; prompt?: unknown }): PtyInfo {
     return this.spawn(this.plan(p, this.takeovers.size));
   }
 
@@ -244,6 +252,51 @@ export class PtyManager {
       throw new PtyError(500, tr('não consegui encerrar a sessão: {0}', [errMsg(err)]));
     }
     log.info(tr('Agente {0} encerrado pelo escritório.', [agentId]));
+  }
+
+  /** Encerra e confirma saída antes de permitir salvar ou apagar os projetos. */
+  async stopAndWait(agentId: string): Promise<void> {
+    const own = this.byAgent(agentId);
+    const remembered = this.stoppingExternal.get(agentId);
+    const ext = own ? { pid: own.proc.pid, proc: await own.identity } : remembered?.target ?? await this.external(agentId);
+    if (!ext.proc && this.isAlive(ext.pid)) throw new PtyError(409, 'não consegui conferir o processo do terminal; tente novamente');
+    // Depois do pai sair os filhos podem ser reparentados: capturar antes do sinal.
+    const children = own?.cleanupPending ?? remembered?.children ?? await (this.opts.descendants ?? ((pid) => processDescendants(pid, this.procInfo)))(ext.pid);
+    if (!remembered && (!own || own.info.exitedAt === undefined) && ext.proc && this.isAlive(ext.pid) && !(await this.stillSame(ext.pid, ext.proc))) {
+      throw new PtyError(409, 'o PID foi reutilizado ou não pode ser confirmado; nenhum sinal foi enviado');
+    }
+    if (own) own.cleanupPending = children;
+    else if (ext.proc && !remembered) this.stoppingExternal.set(agentId, { target: { pid: ext.pid, proc: ext.proc }, children });
+    try {
+      if (own) {
+        if (own.info.exitedAt === undefined) own.proc.kill();
+      } else if (ext.proc && !remembered) await this.killPid(ext.pid, ext.proc);
+    } catch (err) {
+      this.stoppingExternal.delete(agentId);
+      throw new PtyError(500, `não consegui encerrar a sessão: ${errMsg(err)}`);
+    }
+    const targets = [...children, ...(ext.proc ? [{ pid: ext.pid, proc: ext.proc }] : [])];
+    for (let waited = 0; waited <= TAKEOVER_WAIT_MS; waited += 100) {
+      let alive = own ? own.info.exitedAt === undefined : false;
+      for (const target of targets) {
+        if (!this.isAlive(target.pid)) continue;
+        const current = await this.procInfo(target.pid);
+        if (!current) {
+          // O processo pode sair entre kill(pid, 0) e o ps assíncrono.
+          if (!this.isAlive(target.pid)) continue;
+          throw new PtyError(409, `não consegui confirmar a saída do processo ${target.pid}; projetos preservados`);
+        }
+        if (sameIdentity(current, target.proc)) alive = true;
+      }
+      if (!alive) {
+        if (own) own.cleanupPending = undefined;
+        this.stoppingExternal.delete(agentId);
+        return;
+      }
+      if (waited < TAKEOVER_WAIT_MS) await this.sleep(100);
+    }
+    // Não força ferramentas arbitrárias que podem estar gravando arquivos.
+    throw new PtyError(500, 'a sessão ou seus subprocessos continuam abertos; encerre-os e tente finalizar novamente');
   }
 
   /**
@@ -370,12 +423,13 @@ export class PtyManager {
   }
 
   /** Valida o pedido de uma sessão nova (`reserved`: vagas já prometidas a tomadas em andamento). */
-  private plan(p: { cwd: unknown; account?: unknown; cols?: unknown; rows?: unknown }, reserved = 0): SpawnPlan {
+  private plan(p: { cwd: unknown; account?: unknown; cols?: unknown; rows?: unknown; prompt?: unknown }, reserved = 0): SpawnPlan {
     if (!this.opts.spawn) throw new PtyError(503, tr('terminal desligado: {0}', [this.opts.disabledReason ?? tr('indisponível')]));
     // Antes de tudo (o "assumir" encerra a sessão de lá depois daqui): um claude que não roda abriria um terminal que
     // sai na hora.
     if (!isExecutableFile(this.opts.claudeBin)) throw new PtyError(503, tr('o executável do Claude Code não roda: {0} (confira o HABBLAUD_CLAUDE_BIN)', [this.opts.claudeBin]));
     if (typeof p.cwd !== 'string' || !isAbsolute(p.cwd)) throw new PtyError(400, tr('informe a pasta do projeto (caminho absoluto)'));
+    if (p.prompt !== undefined && (typeof p.prompt !== 'string' || !p.prompt.trim() || p.prompt.length > 8192 || p.prompt.includes('\0'))) throw new PtyError(400, 'prompt inválido (informe de 1 a 8192 caracteres)');
     const cwd = resolve(p.cwd);
     let isDir = false;
     try {
@@ -389,7 +443,7 @@ export class PtyManager {
     if (!account) throw new PtyError(400, tr('conta desconhecida'));
     const running = [...this.ptys.values()].filter((t) => t.info.exitedAt === undefined).length;
     if (running + Math.max(0, reserved) >= MAX_PTYS) throw new PtyError(429, tr('limite de {0} terminais abertos', [MAX_PTYS]));
-    return { cwd, account, cols: clampInt(p.cols, 20, 400, 100), rows: clampInt(p.rows, 5, 200, 30) };
+    return { cwd, account, cols: clampInt(p.cols, 20, 400, 100), rows: clampInt(p.rows, 5, 200, 30), prompt: p.prompt as string | undefined };
   }
 
   private spawn(plan: SpawnPlan, p: { resume?: string; from?: string } = {}): PtyInfo {
@@ -403,7 +457,7 @@ export class PtyManager {
 
     let proc: PtyProcess;
     try {
-      const args = p.resume ? ['--resume', p.resume] : [];
+      const args = p.resume ? ['--resume', p.resume] : plan.prompt === undefined ? [] : ['--', plan.prompt];
       proc = spawn(this.opts.claudeBin, args, { cwd, cols, rows, env });
     } catch (err) {
       throw new PtyError(500, tr('não consegui abrir o Claude Code: {0}', [errMsg(err)]));
@@ -412,7 +466,7 @@ export class PtyManager {
     const info: PtyInfo = { id, pid: proc.pid, cwd, account: account.id, agentId: `${account.id}:${proc.pid}`, startedAt: this.now() };
     if (p.resume) info.resumed = p.resume;
     if (p.from) info.fromAgent = p.from;
-    const pty: Pty = { info, proc, screen: this.createScreen(cols, rows), clients: new Set(), pending: new Map() };
+    const pty: Pty = { info, proc, screen: this.createScreen(cols, rows), clients: new Set(), pending: new Map(), identity: this.procInfo(proc.pid).catch(() => undefined) };
     this.ptys.set(id, pty);
     proc.onData((data) => {
       pty.screen.write(data);
@@ -431,7 +485,7 @@ export class PtyManager {
   }
 
   private byAgent(agentId: string): Pty | undefined {
-    for (const t of this.ptys.values()) if (t.info.agentId === agentId && t.info.exitedAt === undefined) return t;
+    for (const t of this.ptys.values()) if (t.info.agentId === agentId && (t.info.exitedAt === undefined || t.cleanupPending !== undefined)) return t;
     return undefined;
   }
 
@@ -477,7 +531,7 @@ export class PtyManager {
     if (!this.isAlive(pid)) return false;
     const now = await this.procInfo(pid);
     if (!now || now.name !== proc.name) return false;
-    return proc.fileTime && now.fileTime ? now.fileTime === proc.fileTime : Math.abs(now.startMs - proc.startMs) < 1_000;
+    return sameIdentity(now, proc);
   }
 
   /** Espera `pid` sair (true) ou o tempo acabar (false). */
@@ -519,6 +573,41 @@ export class PtyManager {
     const f = frame(event, data);
     for (const c of pty.clients) c.write(f);
   }
+}
+
+function sameIdentity(a: ProcInfo, b: ProcInfo): boolean {
+  return a.name === b.name && (a.fileTime && b.fileTime ? a.fileTime === b.fileTime : a.startMs === b.startMs);
+}
+
+/** Lê a árvore sem shell e sem enviar sinais a grupos de processos. */
+async function processDescendants(pid: number, info: (pid: number) => Promise<ProcInfo | undefined>): Promise<ExternalProc[]> {
+  const run = promisify(execFile);
+  let pairs: { pid: number; ppid: number }[];
+  if (process.platform === 'win32') {
+    const { stdout } = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId | ConvertTo-Json -Compress'], { timeout: 5000, maxBuffer: 4 * 1024 * 1024 });
+    const rows = JSON.parse(stdout) as { ProcessId: number; ParentProcessId: number }[];
+    pairs = rows.map((r) => ({ pid: r.ProcessId, ppid: r.ParentProcessId }));
+  } else {
+    const { stdout } = await run('ps', ['-e', '-o', 'pid=', '-o', 'ppid='], { timeout: 5000, maxBuffer: 4 * 1024 * 1024 });
+    pairs = stdout.trim().split('\n').map((line) => {
+      const [child, parent] = line.trim().split(/\s+/).map(Number);
+      return { pid: child, ppid: parent };
+    });
+  }
+  const found = new Set([pid]);
+  let previous = 0;
+  while (previous !== found.size) {
+    previous = found.size;
+    for (const p of pairs) if (found.has(p.ppid) && p.pid > 0) found.add(p.pid);
+  }
+  found.delete(pid);
+  const result: ExternalProc[] = [];
+  for (const child of found) {
+    const proc = await info(child);
+    if (proc) result.push({ pid: child, proc });
+    else if (pidAlive(child)) throw new PtyError(409, `não consegui conferir o subprocesso ${child}`);
+  }
+  return result;
 }
 
 function clampInt(v: unknown, min: number, max: number, fallback: number): number {
