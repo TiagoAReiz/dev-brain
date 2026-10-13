@@ -41,7 +41,7 @@ brain status     # o que está no ar e o que falta enviar
 brain setup      # configura este PC (o mesmo que ./setup.sh)
 ```
 
-Os projetos você abre pelo Habblaud ou com `project start` / `project create` (ver "Dia a dia: `project`").
+Os projetos você abre pelos botões **Iniciar dia** e **Finalizar dia** no Habblaud, ou com `project start` / `project create` (ver "Dia a dia: `project`").
 O log da última subida fica em `~/.habblaud/brain.log`.
 
 ## PC novo
@@ -89,6 +89,19 @@ O `bootstrap.sh` é idempotente e pode rodar quantas vezes quiser. Ele:
 
 Depois de adicionar uma skill em `global/skills/`, rode `./bootstrap.sh` de novo.
 
+## Dia a dia pelo Habblaud
+
+Abra pelo ícone **Dev Brain** ou rode `brain`. No header:
+
+- **Iniciar dia**: escolha continuar um repo (lista com busca, memórias primeiro) ou criar um projeto (privado por padrão). O projeto fica em `~/workfolder` e o Claude abre no terminal interativo do Habblaud. Projeto novo ou memória recém-criada abre com o kickoff.
+- **Finalizar dia**: confira sessões, projetos pendentes, riscos e memória; confirme para encerrar as sessões locais do Claude, salvar no GitHub e limpar o que foi salvo. O relatório mostra pastas mantidas e falhas. Alguns segundos depois, o Habblaud desliga. Para voltar, abra o ícone ou rode `brain`.
+
+Os botões só funcionam neste computador, com terminal interativo habilitado; ficam indisponíveis no acesso remoto e no timelapse. Codex e outros agentes não gerenciados aparecem no resumo e não são encerrados pelo botão.
+
+A limpeza automática mantém pastas com `.env` fora do Git, arquivos ignorados (inclusive caches), stash, submódulos, Git aninhado ou falhas ao salvar/verificar o remoto. Symlinks e arquivos avulsos ficam no disco. Se uma sessão não encerrar, a finalização para antes de salvar ou limpar. Um `CLAUDE.md` existente nunca é sobrescrito para criar memória.
+
+O último relatório fica em `~/.habblaud/ultimo-dia.json` (ou no diretório definido por `HABBLAUD_DATA_DIR`), inclusive depois que o servidor desliga. Falhas de push aparecem no relatório; os dados preservados continuam nesta máquina para resolver depois.
+
 ## Dia a dia: `project`
 
 Fluxo de trabalho em `~/workfolder` (muda com `WORKFOLDER=...`): clona, trabalha, salva tudo e limpa.
@@ -105,12 +118,26 @@ com você e preenche README, arquitetura, decisões e roadmap da memória. Daí 
 
 O `exit` só apaga uma pasta quando **tudo** está no GitHub. Mantém a pasta (e avisa) se:
 - não é repo git, ou há repos git aninhados e você não quis removê-los;
-- há `.env` ignorado e você não confirmou que pode apagar;
+- há `.env` fora do Git, outros arquivos ignorados, submódulos ou worktree compartilhado;
 - o commit ou o push falhou, ou o HEAD está destacado;
 - há commits em outras branches locais que não estão no remoto, ou há stash.
 
 Se o push da branch atual falhar (ex.: divergiu), ele envia o HEAD para `wip/<data-hora>` sem trocar de branch.
-Arquivos soltos no workfolder nunca são apagados. O Claude abre com `--dangerously-skip-permissions`.
+Arquivos soltos no workfolder nunca são apagados. O Claude aberto pelo CLI interativo usa `--dangerously-skip-permissions`; o terminal do Habblaud mantém o comportamento de permissões do próprio Habblaud.
+
+### Integração sem perguntas
+
+O Habblaud usa estes modos da mesma CLI; stdout contém somente JSON e os erros vão para stderr:
+
+```bash
+project repos --json
+project preparar dono/repo --json
+project create meu-app --private --sem-claude --json
+project resumo --json
+project exit --sem-perguntas --json
+```
+
+No modo automático, pastas com riscos ficam preservadas. A verificação antes de limpar busca as branches atuais do `origin`; refs locais antigas ou commits que só existem em outro remoto não bastam. Falhas de criação mantêm a pasta e a memória e indicam os caminhos para recuperação.
 
 ## Projeto novo (repo que já existe)
 
