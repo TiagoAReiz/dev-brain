@@ -1,0 +1,49 @@
+/* O ciclo do dia usa o mesmo painel do escritório, com leitura sóbria inclusive no presencial. */
+.dbd-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(620px, calc(100vw - 24px));
+  max-height: min(820px, calc(100dvh - 32px));
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--ui-line-strong);
+  border-radius: var(--radius);
+  color: var(--ui-text);
+  background: var(--ui-bg-solid);
+  box-shadow: 0 20px 70px #0006;
+  font: 14px/1.5 var(--font-ui);
+  pointer-events: auto;
+}
+.dbd-dialog::backdrop { background: #080c1477; }
+.dbd-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--ui-line); }
+.dbd-head h2 { font: 600 19px/1.3 var(--font-ui); margin: 0; }
+.dbd-body { display: grid; gap: 14px; padding: 20px; }
+.dbd-body p { margin: 0; }
+.dbd-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.dbd-button { font: inherit; padding: 9px 13px; white-space: normal; text-align: left; cursor: pointer; }
+.dbd-primary { color: var(--ui-accent); border-color: var(--ui-accent); }
+.dbd-button:disabled, .dbd-input:disabled { cursor: default; opacity: .55; }
+.dbd-header-button { font-size: 12px; max-width: 240px; }
+.dbd-form { display: grid; gap: 10px; }
+.dbd-input { min-width: 0; width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--ui-line-strong); background: var(--ui-bg-soft); color: var(--ui-text); font: inherit; }
+.dbd-input option { background: var(--ui-bg-solid); color: var(--ui-text); }
+.dbd-list, .dbd-details { list-style: none; padding: 0; margin: 0; }
+.dbd-list { display: grid; gap: 6px; max-height: 42dvh; overflow: auto; }
+.dbd-list .dbd-button { display: block; width: 100%; overflow-wrap: anywhere; }
+.dbd-section { border-top: 1px solid var(--ui-line); padding-top: 12px; }
+.dbd-section h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+.dbd-details li { padding: 5px 0; overflow-wrap: anywhere; }
+.dbd-muted { color: var(--ui-muted); font-size: 13px; }
+.dbd-status { margin: 0; padding: 0 20px 18px; color: var(--ui-accent); overflow-wrap: anywhere; }
+.dbd-status:empty { padding-bottom: 0; }
+.dbd-error { color: var(--lv-crit); }
+.dbd-path { font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere; }
+.dbd-dialog :focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 3px; }
+@media (max-width: 480px) {
+  .dbd-head { padding: 14px; align-items: flex-start; }
+  .dbd-body { padding: 14px; }
+  .dbd-status { padding-inline: 14px; }
+  .dbd-actions { flex-direction: column; }
+  .dbd-header-button { max-width: 160px; }
+}
