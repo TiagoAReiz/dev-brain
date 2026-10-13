@@ -44,6 +44,8 @@ O `install-tools.sh` é idempotente e instala:
 
 Fases separadas: `sudo ./install-tools.sh system` e `./install-tools.sh user`.
 Para trocar o Java padrão: `sudo update-alternatives --config java`.
+Só a configuração do shell (máquina que já tem as ferramentas): `./install-tools.sh shell`.
+Se houver **fish**, ela grava `~/.config/fish/conf.d/dev-brain.fish` com `DEV_BRAIN_HOME`, `~/.local/bin` no PATH e o alias do claude.
 
 O `bootstrap.sh` é idempotente e pode rodar quantas vezes quiser. Ele:
 - cria symlinks de `global/CLAUDE.md`, de cada skill e de cada subagente (`global/agents/`) em `~/.claude/`, e de cada script de `bin/` em `~/.local/bin/`;

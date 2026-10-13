@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# install-tools.sh [system|user|all]: instala as ferramentas de dev no Ubuntu/WSL.
+# install-tools.sh [system|user|shell|all]: instala as ferramentas de dev no Ubuntu/WSL.
 # Idempotente: pula o que já está instalado.
 #   system  pacotes apt (precisa de root: sudo ./install-tools.sh system)
-#   user    nvm/node, nest cli, claude code, DEV_BRAIN_HOME (como seu usuário, sem sudo)
-#   all     os dois (padrão; usa sudo na parte system)
+#   user    nvm/node, nest cli, claude code e a fase shell (como seu usuário, sem sudo)
+#   shell   só a configuração do shell: ~/.bashrc e, se houver fish, ~/.config/fish/conf.d/dev-brain.fish
+#   all     system + user (padrão; usa sudo na parte system)
 # Diferente do bootstrap.sh, este script INSTALA coisas. Só roda em Ubuntu/Debian.
 set -euo pipefail
 
@@ -76,17 +77,36 @@ install_user() {
     curl -fsSL https://claude.ai/install.sh | bash
   fi
 
+  install_shell
+}
+
+# shellcheck disable=SC2016  # $HOME/$PATH literais de propósito
+install_shell() {
+  [ "$(id -u)" -ne 0 ] || { echo "A fase shell roda como seu usuário, não root." >&2; exit 1; }
+
   say "PATH, DEV_BRAIN_HOME e alias do claude no ~/.bashrc"
   append_once "$HOME/.bashrc" "# local bin" 'export PATH="$HOME/.local/bin:$PATH"'
   append_once "$HOME/.bashrc" "# dev-brain" "export DEV_BRAIN_HOME=\"${DEV_BRAIN_HOME/#$HOME/\$HOME}\""
   append_once "$HOME/.bashrc" "# claude bypass" "alias claude='claude --dangerously-skip-permissions'"
+
+  if command -v fish >/dev/null 2>&1 || [ -d "$HOME/.config/fish" ]; then
+    say "fish: ~/.config/fish/conf.d/dev-brain.fish"
+    mkdir -p "$HOME/.config/fish/conf.d"
+    cat > "$HOME/.config/fish/conf.d/dev-brain.fish" <<EOF
+# Gerado pelo dev-brain/install-tools.sh; rode de novo para atualizar.
+set -gx DEV_BRAIN_HOME "${DEV_BRAIN_HOME/#$HOME/\$HOME}"
+fish_add_path -g \$HOME/.local/bin
+alias claude 'claude --dangerously-skip-permissions'
+EOF
+  fi
 }
 
 case "${1:-all}" in
   system) install_system ;;
   user)   install_user ;;
+  shell)  install_shell ;;
   all)    sudo "$0" system; install_user ;;
-  *)      echo "uso: $0 [system|user|all]" >&2; exit 1 ;;
+  *)      echo "uso: $0 [system|user|shell|all]" >&2; exit 1 ;;
 esac
 
 say "Pronto. Abra um terminal novo (ou: source ~/.bashrc) e rode ./bootstrap.sh"
