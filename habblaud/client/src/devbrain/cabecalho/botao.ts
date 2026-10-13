@@ -51,6 +51,7 @@ export function botaoCabecalho(o: OpcoesBotao): BotaoCabecalho {
     ico,
     rot,
   );
+  let ligadoAtual: boolean | null = null;
   return {
     el,
     atualizar(p) {
@@ -62,7 +63,10 @@ export function botaoCabecalho(o: OpcoesBotao): BotaoCabecalho {
       if (p.desabilitado !== undefined && el.disabled !== p.desabilitado) el.disabled = p.desabilitado;
       if (typeof p.ligado === 'boolean') {
         setAttr(el, 'aria-pressed', String(p.ligado));
-        if (el.classList.contains('is-on') !== p.ligado) el.classList.toggle('is-on', p.ligado);
+        if (ligadoAtual !== p.ligado) {
+          ligadoAtual = p.ligado;
+          el.classList.toggle('is-on', p.ligado);
+        }
       }
     },
   };
