@@ -1,0 +1,20 @@
+#!/usr/bin/env node
+'use strict';
+// spec-check: lê {tarefas, gates} em JSON no stdin, valida e imprime as ondas.
+// Uso: spec-check < tarefas.json > args.json
+const fs = require('node:fs');
+const { checar } = require('../lib/spec-check.cjs');
+
+let entrada;
+try {
+  entrada = JSON.parse(fs.readFileSync(0, 'utf8'));
+} catch (e) {
+  process.stderr.write(`JSON inválido: ${e.message}\n`);
+  process.exit(1);
+}
+const r = checar(entrada);
+if (!r.ok) {
+  process.stderr.write(`${r.erros.map((e) => `- ${e}`).join('\n')}\n`);
+  process.exit(1);
+}
+process.stdout.write(`${JSON.stringify(r.saida, null, 2)}\n`);

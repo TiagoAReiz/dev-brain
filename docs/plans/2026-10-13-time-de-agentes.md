@@ -54,7 +54,7 @@ README.md                          estrutura, fluxo, fish, Habblaud         [alt
 exemplos/sandbox/...               repo de teste de ponta a ponta           [novo]
 ```
 
-Comando de testes do repo (usado em todas as tarefas): `node --test tests/ && bash tests/bootstrap.test.sh && bash tests/install-shell.test.sh`
+Comando de testes do repo (usado em todas as tarefas): `node --test 'tests/*.test.cjs' && bash tests/bootstrap.test.sh && bash tests/install-shell.test.sh`
 (as duas últimas partes só existem a partir das Tarefas 5 e 6).
 
 ---
@@ -217,7 +217,7 @@ test('CLI: spec inválida lista os erros e sai com 1', () => {
 
 - [ ] **Passo 2: rodar e ver falhar**
 
-Run: `node --test tests/`
+Run: `node --test 'tests/*.test.cjs'`
 Expected: FAIL com `Cannot find module '../lib/spec-check.cjs'`.
 
 - [ ] **Passo 3: implementar `lib/spec-check.cjs`**
@@ -402,7 +402,7 @@ Run: `chmod +x bin/spec-check`
 
 - [ ] **Passo 5: rodar e ver passar**
 
-Run: `node --test tests/`
+Run: `node --test 'tests/*.test.cjs'`
 Expected: todos os testes `ok`, `fail 0`.
 
 - [ ] **Passo 6: commit**
@@ -470,7 +470,7 @@ test('nenhum agente sobrando', () => {
 
 - [ ] **Passo 2: rodar e ver falhar**
 
-Run: `node --test tests/`
+Run: `node --test 'tests/*.test.cjs'`
 Expected: FAIL em `agente dev-rapido` com `ENOENT`.
 
 - [ ] **Passo 3: criar os agentes**
@@ -643,7 +643,7 @@ e `erros_console` (lista de textos).
 
 - [ ] **Passo 4: rodar e ver passar**
 
-Run: `node --test tests/`
+Run: `node --test 'tests/*.test.cjs'`
 Expected: `fail 0`.
 
 - [ ] **Passo 5: commit**
@@ -712,7 +712,7 @@ test('todo agentType usado existe em global/agents', () => {
 
 - [ ] **Passo 2: rodar e ver falhar**
 
-Run: `node --test tests/`
+Run: `node --test 'tests/*.test.cjs'`
 Expected: FAIL com `ENOENT` em `time.js`.
 
 - [ ] **Passo 3: implementar `global/workflows/time.js`**
@@ -1023,7 +1023,7 @@ return {
 
 - [ ] **Passo 4: rodar e ver passar**
 
-Run: `node --test tests/`
+Run: `node --test 'tests/*.test.cjs'`
 Expected: `fail 0`.
 
 - [ ] **Passo 5: commit**
@@ -1282,7 +1282,7 @@ memory/README.md      # índice de projetos
 memory/<projeto>/     # README, arquitetura, estado-atual, decisoes, roadmap, specs/
 docs/                 # specs e planos do próprio dev-brain
 exemplos/sandbox/     # repo de teste do time de agentes
-tests/                # node --test tests/ && bash tests/*.test.sh
+tests/                # node --test 'tests/*.test.cjs' && bash tests/*.test.sh
 ```
 
 Troque a seção "## Implementando: skill `implementar`" inteira por:
@@ -1306,7 +1306,7 @@ Subagentes ficam em `global/agents/`: `dev-rapido`, `dev`, `gate`, `commit`, `re
 
 - [ ] **Passo 6: conferir**
 
-Run: `node --test tests/ && grep -c "time-de-agentes" global/skills/implementar/SKILL.md README.md global/CLAUDE.md`
+Run: `node --test 'tests/*.test.cjs' && grep -c "time-de-agentes" global/skills/implementar/SKILL.md README.md global/CLAUDE.md`
 Expected: testes `fail 0`; cada arquivo com contagem ≥ 1.
 
 - [ ] **Passo 7: commit**
@@ -1408,7 +1408,7 @@ Na lista "O `bootstrap.sh` é idempotente e pode rodar quantas vezes quiser. Ele
 
 - [ ] **Passo 6: rodar e ver passar**
 
-Run: `bash tests/bootstrap.test.sh && node --test tests/`
+Run: `bash tests/bootstrap.test.sh && node --test 'tests/*.test.cjs'`
 Expected: `ok: bootstrap` e `fail 0`.
 
 - [ ] **Passo 7: commit**
@@ -1540,7 +1540,7 @@ Se houver **fish**, ela grava `~/.config/fish/conf.d/dev-brain.fish` com `DEV_BR
 
 - [ ] **Passo 5: rodar e ver passar**
 
-Run: `bash tests/install-shell.test.sh && bash tests/bootstrap.test.sh && node --test tests/ && bash -n install-tools.sh bootstrap.sh`
+Run: `bash tests/install-shell.test.sh && bash tests/bootstrap.test.sh && node --test 'tests/*.test.cjs' && bash -n install-tools.sh bootstrap.sh`
 Expected: `ok: install-tools shell`, `ok: bootstrap`, `fail 0`, sem saída do `bash -n`.
 
 - [ ] **Passo 6: commit**
