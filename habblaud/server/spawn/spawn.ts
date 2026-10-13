@@ -43,6 +43,10 @@ const ERROR_MAX = 300;
 export interface SpawnRequest {
   folder: string;
   prompt: string;
+  /** Id da assinatura (conta) escolhida; só o servidor resolve para `configDir`. */
+  account?: string;
+  /** CLAUDE_CONFIG_DIR da conta não padrão (definido pelo SpawnService, nunca pelo corpo do POST). */
+  configDir?: string;
 }
 
 export type SpawnStatus = 'queued' | 'sent' | 'opened' | 'failed';
@@ -76,7 +80,9 @@ export function parseSpawn(raw: unknown): SpawnRequest | { error: string } {
     return { error: tr('escolha uma pasta (caminho absoluto, ex.: /Users/voce/projeto)') };
   }
   if (prompt.length > PROMPT_MAX || prompt.includes('\0')) return { error: tr('o pedido passa de {0} caracteres', [PROMPT_MAX]) };
-  return { folder, prompt };
+  if (r.account === undefined || r.account === null) return { folder, prompt };
+  if (typeof r.account !== 'string' || r.account.length < 1 || r.account.length > 64) return { error: tr('assinatura inválida') };
+  return { folder, prompt, account: r.account };
 }
 
 /** O link que o app do Claude entende (claude://code/new; `q` = pedido já escrito). */
@@ -101,11 +107,17 @@ export function cliArgs(req: SpawnRequest): string[] {
   return req.prompt.trim() ? [...args, '--', req.prompt] : args;
 }
 
+/** Env do `claude --bg`: com `configDir` roda na conta dele; sem, undefined (herda o do servidor). */
+export function cliEnv(base: NodeJS.ProcessEnv, configDir?: string): NodeJS.ProcessEnv | undefined {
+  return configDir ? { ...base, CLAUDE_CONFIG_DIR: configDir } : undefined;
+}
+
 /** `claude --bg` na pasta do pedido; devolve o id curto que ele imprime ("backgrounded · 7eacc670 · nome"). */
 export function createCliRunner(bin: string, timeoutMs = CLI_TIMEOUT_MS): CliRunner {
   return (req) =>
     new Promise((ok) => {
-      const child = execFile(bin, cliArgs(req), { cwd: req.folder, timeout: timeoutMs, windowsHide: true, encoding: 'utf8' }, (err, out, stderr) => {
+      const env = cliEnv(process.env, req.configDir);
+      const child = execFile(bin, cliArgs(req), { cwd: req.folder, timeout: timeoutMs, windowsHide: true, encoding: 'utf8', ...(env ? { env } : {}) }, (err, out, stderr) => {
         const id = /backgrounded\s*·\s*([\w-]+)/.exec(out ?? '')?.[1];
         if (!err && id) return ok({ ok: true, id });
         const line = [stderr, out, err?.message].map((t) => (t ?? '').split('\n').map((l) => l.trim()).find(Boolean)).find(Boolean);
@@ -179,6 +191,8 @@ export interface SpawnServiceOptions {
   folderProblem?: (folder: string) => string | undefined;
   /** Anexos enviados antes do pedido (POST /api/spawn/attachments); ausente = pedidos sem anexos. */
   attachments?: AttachmentStore;
+  /** Resolve a assinatura (só contas Claude); undefined = desconhecida. Ausente = `account` é ignorada. */
+  accountDir?: (id: string) => { dir: string; isDefault: boolean } | undefined;
   /** Modo direto: grava os anexos e devolve os caminhos (padrão: ~/.habblaud/attachments/). */
   writeFiles?: (spawnId: string, files: readonly Attachment[]) => string[];
   now?: () => number;
@@ -209,6 +223,11 @@ export class SpawnService {
     this.prune();
     const req = parseSpawn(raw);
     if ('error' in req) return { error: 'invalid', reason: req.error };
+    if (req.account && this.opts.accountDir) {
+      const acc = this.opts.accountDir(req.account);
+      if (!acc) return { error: 'invalid', reason: tr('conta desconhecida ou que não roda em segundo plano: use o terminal') };
+      if (!acc.isDefault) req.configDir = acc.dir;
+    }
     if (!this.available()) {
       return { error: 'unavailable', reason: tr('o auxiliar do computador não está rodando: deixe npm run codex:bridge no ar (o Habblaud está no Docker)') };
     }
@@ -280,7 +299,7 @@ export class SpawnService {
     } finally {
       this.dropFiles(e);
     }
-    const req = { folder: e.req.folder, prompt: promptWithAttachments(e.req.prompt, paths) };
+    const req: SpawnRequest = { ...e.req, prompt: promptWithAttachments(e.req.prompt, paths) };
     this.resolve(e, await launch(req, opener, this.opts.cli));
   }
 

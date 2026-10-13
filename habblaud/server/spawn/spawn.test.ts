@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   cliArgs,
+  cliEnv,
   createCliRunner,
   folderProblem,
   HOST_PRESENCE_MS,
@@ -179,6 +180,51 @@ describe('novo agente em segundo plano (claude --bg)', () => {
     expect(realpathSync(args[0])).toBe(realpathSync(dir));
     expect(args.slice(1)).toEqual(['--bg', '-n', 'Habblaud: faça $(rm -rf x) && y', '--', 'faça $(rm -rf x) && y']);
     expect(await run({ folder: tmpdir(), prompt: 'oi' })).toEqual({ ok: false, error: 'Workspace not trusted. Run claude once' });
+  });
+
+  it('parseSpawn aceita account de 1 a 64 caracteres', () => {
+    expect(parseSpawn({ folder: '/p', prompt: 'x', account: 'a1' })).toEqual({ folder: '/p', prompt: 'x', account: 'a1' });
+    expect(parseSpawn({ folder: '/p', account: 'x'.repeat(64) })).toHaveProperty('account');
+    expect(parseSpawn({ folder: '/p', account: '' })).toHaveProperty('error');
+    expect(parseSpawn({ folder: '/p', account: 'x'.repeat(65) })).toHaveProperty('error');
+    expect(parseSpawn({ folder: '/p', account: 5 })).toHaveProperty('error');
+    expect(parseSpawn({ folder: '/p', configDir: '/evil' })).not.toHaveProperty('configDir');
+  });
+
+  it('submit resolve a conta: padrão sem configDir, outra com configDir, desconhecida invalid', async () => {
+    const seen: Array<string | undefined> = [];
+    const mk = () =>
+      new SpawnService({
+        opener: async () => ({ ok: true }),
+        cli: async (req) => (seen.push(req.configDir), { ok: true, id: 'x' }),
+        folderProblem: () => undefined,
+        accountDir: (id) => (id === 'def' ? { dir: '/h/.claude', isDefault: true } : id === 'b' ? { dir: '/h/.claude-b', isDefault: false } : undefined),
+      });
+    const s = mk();
+    expect(s.submit({ folder: '/p', prompt: 'oi', account: 'def' })).toHaveProperty('spawn');
+    expect(s.submit({ folder: '/p', prompt: 'oi', account: 'b' })).toHaveProperty('spawn');
+    expect(s.submit({ folder: '/p', prompt: 'oi' })).toHaveProperty('spawn');
+    await new Promise((ok) => setTimeout(ok, 0));
+    expect(seen).toEqual([undefined, '/h/.claude-b', undefined]);
+    expect(s.submit({ folder: '/p', prompt: 'oi', account: 'codex' })).toEqual({
+      error: 'invalid',
+      reason: 'conta desconhecida ou que não roda em segundo plano: use o terminal',
+    });
+  });
+
+  it('cliEnv: com configDir define CLAUDE_CONFIG_DIR; sem, herda (undefined)', () => {
+    expect(cliEnv({ A: '1', CLAUDE_CONFIG_DIR: '/velho' }, '/novo')).toEqual({ A: '1', CLAUDE_CONFIG_DIR: '/novo' });
+    expect(cliEnv({ A: '1' })).toBeUndefined();
+  });
+
+  it('createCliRunner passa CLAUDE_CONFIG_DIR ao binário quando há configDir', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hb-spawn-env-'));
+    const bin = join(dir, 'claude');
+    writeFileSync(bin, `#!/bin/sh\nprintf '%s' "$CLAUDE_CONFIG_DIR" > "${dir}/cfg"\necho 'backgrounded · abc123 · n'\n`);
+    chmodSync(bin, 0o755);
+    const run = createCliRunner(bin);
+    expect(await run({ folder: dir, prompt: 'oi', configDir: '/h/.claude-b' })).toEqual({ ok: true, id: 'abc123' });
+    expect(readFileSync(join(dir, 'cfg'), 'utf8')).toBe('/h/.claude-b');
   });
 
   it('launch: roda em segundo plano; se não der, abre o app e diz por quê', async () => {
