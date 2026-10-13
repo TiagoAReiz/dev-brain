@@ -14,7 +14,9 @@
 - Fora do fluxo de implementação, ao atualizar a memória mostre o diff antes de gravar.
 
 ## Implementação
-- Toda implementação (feature, correção, refactor) segue a skill `implementar`: eu planejo com você, agentes Haiku implementam, eu testo.
+- Toda implementação (feature, correção, refactor) segue a skill `implementar`: eu planejo com você e escrevo a spec,
+  um time de subagentes implementa pelo workflow `time-de-agentes` (Haiku/Sonnet, com gates, revisão e escada), eu faço a leitura final e a QA.
+- Subagentes sempre com modelo explícito; nunca deixe herdar o da sessão.
 - No fim do fluxo, a memória do projeto é atualizada e commitada no dev-brain sem perguntar; o diff vai no resumo.
 
 ## Git e autoria

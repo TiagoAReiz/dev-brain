@@ -1,6 +1,6 @@
 # <Título da feature>
 
-**Status:** planejada | em implementação | implementada | proposta
+**Status:** planejada | em implementação | implementada | parcial | proposta
 **Data:** AAAA-MM-DD
 **Projeto:** <projeto> (`<caminho do repo>`)
 
@@ -22,23 +22,37 @@
 ## Contratos
 <!-- Assinaturas, tipos, schemas, rotas, eventos, migrations: nomes exatos. -->
 
-## Tarefas
-### 1. <título>
-- **Arquivos:** `...`
-- **O que fazer:**
-- **Depende de:** nenhuma | tarefa N
-
-### 2. <título>
-...
-
-## Critérios de aceite
-- [ ] <verificável: comando, comportamento observável, resposta esperada>
-
-## Como testar
-```bash
-# build / lint / testes
+## Gates
+<!-- Omita para usar gate-tarefa/gate-onda do CLAUDE.md do repo. {arquivos} = arquivos da tarefa. -->
+```yaml
+gates:
+  tarefa: "<lint/testes só dos arquivos: ... {arquivos}>"
+  onda: "<lint + typecheck + suíte completa>"
 ```
-<!-- Fluxo manual ou de navegador, se tiver interface. -->
+
+## Tarefas
+<!-- P: até 3 arquivos e 5 critérios. Sem arquivos/depende = roda sozinha depois das anteriores. -->
+```yaml
+- id: 1
+  titulo: <vira a mensagem do commit>
+  tamanho: P
+  arquivos: [<caminho/exato.ext>]
+  depende: []
+  referencia: <arquivo existente para seguir o padrão>
+  aceite:
+    - <verificável: comando, comportamento observável, resposta esperada>
+```
+
+## QA
+<!-- Só com interface. Omita a seção inteira se não houver. -->
+```yaml
+qa:
+  subir: "<comando que sobe o app>"
+  url: http://localhost:<porta>
+  logado: false
+  roteiro:
+    - <passo concreto -> resultado esperado>
+```
 
 ## Como ficou
-<!-- Preenchido no fim: desvios do plano, rodadas de correção, pendências. -->
+<!-- Preenchido no fim: desvios do plano, correções, bloqueios e a tabela de métricas. -->

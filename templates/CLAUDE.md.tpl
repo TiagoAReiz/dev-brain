@@ -34,4 +34,8 @@ Specs de features e melhorias ficam em `specs/AAAA-MM-DD-<slug>.md`, com `Status
 Trate a memória como histórico, não como verdade. Se ela contradisser o código, **o código vence**: siga o código e proponha a correção na memória.
 
 ## Específico deste projeto
+<!-- Gates usados pelo time de agentes quando a spec não define os seus. {arquivos} = arquivos da tarefa. -->
+gate-tarefa: <ex.: npm run lint -- {arquivos} && npx vitest related {arquivos} --run>
+gate-onda: <ex.: npm run lint && npm run typecheck && npm test>
+
 <!-- Comandos de build/test, convenções e armadilhas que só valem aqui. -->

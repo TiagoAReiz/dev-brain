@@ -8,15 +8,22 @@ Roda em **Linux, macOS e WSL**. No Windows, use dentro do WSL (o Git Bash não c
 ## Estrutura
 
 ```
-install-tools.sh      # instala ferramentas de dev no Ubuntu/WSL (apt + nvm + claude)
+install-tools.sh      # instala ferramentas de dev no Ubuntu/WSL (apt + nvm + claude) e configura bash/fish
 bootstrap.sh          # configura a máquina (symlinks + checagem de deps)
 new-project.sh        # cria memória + CLAUDE.md de um projeto novo
 bin/project           # CLI create/start/exit de projetos em ~/workfolder -> ~/.local/bin/project
+bin/spec-check        # valida as tarefas de uma spec e calcula as ondas -> ~/.local/bin/spec-check
+lib/                  # código Node usado pelos bins (sem dependências)
 global/CLAUDE.md      # instruções globais  -> ~/.claude/CLAUDE.md
 global/skills/<nome>/ # uma pasta por skill -> ~/.claude/skills/<nome>
+global/agents/<nome>.md # subagentes do time -> ~/.claude/agents/<nome>.md
+global/workflows/     # scripts de Workflow (time.js: o time de agentes)
 templates/            # modelos usados pelo new-project.sh
 memory/README.md      # índice de projetos
 memory/<projeto>/     # README, arquitetura, estado-atual, decisoes, roadmap, specs/
+docs/                 # specs e planos do próprio dev-brain
+exemplos/sandbox/     # repo de teste do time de agentes
+tests/                # node --test 'tests/*.test.cjs' && bash tests/*.test.sh
 ```
 
 ## Máquina nova
@@ -85,12 +92,18 @@ Depois disso, preencha o `README.md` do projeto e a linha do índice, e faça o 
 
 ## Implementando: skill `implementar`
 
-Toda implementação passa pelo mesmo fluxo:
-1. o agente da sessão planeja com você e grava a spec em `memory/<projeto>/specs/AAAA-MM-DD-<slug>.md` (modelo em `global/skills/implementar/spec-template.md`);
-2. agentes Haiku implementam a partir da spec e da memória (em paralelo quando as tarefas não se tocam);
-3. o agente da sessão testa (build, testes, `chrome-windows` para interface);
-4. falhas voltam para um Haiku novo: até 3 rodadas, depois 1 com Sonnet, depois ele para e te chama;
-5. no fim: memória atualizada (spec, arquitetura, decisões, estado, roadmap, melhorias), commit no projeto (sem push) e commit + push no dev-brain.
+Toda implementação vira trabalho de um time:
+1. o agente da sessão (Opus) planeja com você e grava a spec em `memory/<projeto>/specs/AAAA-MM-DD-<slug>.md`
+   (modelo em `global/skills/implementar/spec-template.md`), com as tarefas num bloco YAML;
+2. `spec-check` valida as tarefas e calcula as **ondas** (tarefas sem dependência entre si e com arquivos disjuntos rodam juntas);
+3. o workflow `time-de-agentes` (`global/workflows/time.js`) roda cada onda:
+   dev → gate da tarefa → (escada) → gate da onda → commit por tarefa → revisão Sonnet → correções;
+4. escada por tamanho: **P** Haiku → Haiku → Sonnet; **M** Sonnet → Sonnet; depois disso a tarefa bloqueia e vai para o resumo;
+5. o Opus lê o resultado e o diff consolidado uma vez, roda a QA de interface (`qa-browser`: `chrome-windows` no WSL,
+   Claude in Chrome no Linux/macOS) e fecha a memória com a tabela de métricas.
+
+Depois do seu "ok" na spec, o time roda sozinho até o resumo. Acompanhe pelo `/workflows` ou pelo Habblaud.
+Subagentes ficam em `global/agents/`: `dev-rapido`, `dev`, `gate`, `commit`, `revisor`, `qa-browser`.
 
 O `project start` mostra o `estado-atual.md` do projeto ao abrir.
 
