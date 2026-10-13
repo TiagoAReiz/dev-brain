@@ -83,6 +83,14 @@ describe('preferências', () => {
     expect(sanitizePrefs({ sounds: { volume: -1 } }).sounds.volume).toBe(0);
     expect(sanitizePrefs({ sounds: 'alto' }).sounds).toEqual(DEFAULT_PREFS.sounds);
   });
+  it('modo presencial: desligado por padrão; aceita true e cai em false se ausente ou inválido', () => {
+    expect(DEFAULT_PREFS.presencial).toBe(false);
+    expect(sanitizePrefs({ presencial: true }).presencial).toBe(true);
+    expect(sanitizePrefs({ presencial: false }).presencial).toBe(false);
+    expect(sanitizePrefs({}).presencial).toBe(false);
+    expect(sanitizePrefs({ presencial: 'sim' }).presencial).toBe(false);
+    expect(sanitizePrefs({ presencial: 1 }).presencial).toBe(false);
+  });
 });
 
 describe('migração do nome antigo (CodeTown)', () => {

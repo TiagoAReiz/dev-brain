@@ -15,6 +15,8 @@ export interface UiPrefs {
   theme: NonNullable<WorldOptions['theme']>;
   /** Sons sintetizados (interruptor geral; desligado por padrão). */
   sound: boolean;
+  /** Modo presencial: tabela sóbria no lugar do prédio (preferência deste navegador). */
+  presencial: boolean;
   /** Volume mestre e categorias dos sons. */
   sounds: SoundSettings;
   /** Notification do navegador para alertas com a aba oculta. */
@@ -32,6 +34,7 @@ export const DEFAULT_PREFS: UiPrefs = {
   daylight: 'auto',
   theme: 'auto',
   sound: false,
+  presencial: false,
   sounds: DEFAULT_SOUND_SETTINGS,
   browserNotifications: false,
   sidebarOpen: true,
@@ -57,6 +60,7 @@ export function sanitizePrefs(raw: unknown): UiPrefs {
     daylight: oneOf(o.daylight, ['auto', 'day', 'night'] as const, o.dayNight === false ? 'day' : d.daylight),
     theme: oneOf(o.theme, ['auto', 'none', 'christmas', 'halloween'] as const, d.theme),
     sound: bool(o.sound, d.sound),
+    presencial: bool(o.presencial, d.presencial),
     sounds: sanitizeSoundSettings(o.sounds),
     browserNotifications: bool(o.browserNotifications, d.browserNotifications),
     sidebarOpen: bool(o.sidebarOpen, d.sidebarOpen),
