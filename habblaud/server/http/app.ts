@@ -57,6 +57,10 @@ export interface ApiDeps {
    * Ausente = desligado (sem HABBLAUD_PTY=1, Docker, sem node-pty ou sem bind local).
    */
   pty?: (req: IncomingMessage, res: ServerResponse, path: string) => void;
+  /** Ciclo do dia: somente porta local, com a mesma guarda do terminal interativo. */
+  devbrain?: (req: IncomingMessage, res: ServerResponse, path: string) => void;
+  /** Impede novas sessões durante o salvamento e a limpeza do ciclo do dia. */
+  isFinalizing?: () => boolean;
   /**
    * Fonte do Codex ao vivo: recebe os eventos dos hooks do Codex (POST /api/codex/events, server/codex/http.ts). Sem
    * ela a rota responde {ok: false}. Só com Host local e, fora do Docker, conexão pelo loopback (os eventos só observam:
@@ -120,7 +124,8 @@ function isLocalOnlyPath(path: string): boolean {
     path === '/api/mod/inbox' ||
     path === '/api/mod/inbox/ack' ||
     path.startsWith('/api/codex/') ||
-    path.startsWith('/api/host/')
+    path.startsWith('/api/host/') ||
+    path === '/api/devbrain' || path.startsWith('/api/devbrain/')
   );
 }
 
@@ -331,6 +336,16 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
     if (isRemote(req) && isLocalOnlyPath(path)) {
       req.resume();
       sendJson(res, 403, { error: tr('rota só do próprio computador (hooks, plugins e o auxiliar do host)') });
+      return true;
+    }
+    if (method === 'POST' && deps.isFinalizing?.() && (/^\/api\/pty\/*$/.test(path) || /^\/api\/agents\/[^/]+\/takeover$/.test(path) || path === '/api/spawn')) {
+      req.resume();
+      sendJson(res, 409, { error: 'O dia está sendo finalizado. Aguarde antes de abrir outra sessão.' });
+      return true;
+    }
+    if (path === '/api/devbrain' || path.startsWith('/api/devbrain/')) {
+      if (deps.devbrain) deps.devbrain(req, res, path);
+      else sendJson(res, 403, { error: 'Ciclo do dia desligado: ligue o terminal interativo local.' });
       return true;
     }
     if (path === '/api/stream') {

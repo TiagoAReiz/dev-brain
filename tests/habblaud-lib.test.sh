@@ -31,6 +31,12 @@ grep -qx "Environment=HABBLAUD_PTY=1" <<<"$unit" || falha "PTY"
 grep -qx "Environment=HABBLAUD_CLAUDE_BIN=/opt/bin/claude" <<<"$unit" || falha "CLAUDE_BIN"
 grep -qx 'Environment="PATH=/a:/b"' <<<"$unit" || falha "PATH"
 
+grep -Fxq "Environment=\"DEV_BRAIN_HOME=$fake\"" <<<"$unit" || falha "DEV_BRAIN_HOME"
+
+# QA/instâncias isoladas não usam o PID nem o relatório da instância padrão.
+isolado="$(HABBLAUD_DATA_DIR="$tmp/dados-isolados" bash -c ". '$raiz/lib/habblaud.sh'; printf '%s' \"\$HB_PID\"")"
+[ "$isolado" = "$tmp/dados-isolados/server.pid" ] || falha "DATA_DIR do PID"
+
 # precisa de build: sem dist, sem marca, marca velha, código sujo
 hb_precisa_build || falha "sem dist deveria precisar de build"
 touch "$fake/habblaud/dist/server/index.js"

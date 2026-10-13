@@ -38,6 +38,7 @@ import { UpdateToaster } from './version';
 import { TopBar } from './topbar';
 import { UpdateBanner } from './update';
 import { InterruptorPresencial } from '../devbrain/presencial/interruptor';
+import { CicloDia } from '../devbrain/dia';
 import { TabelaPresencial } from '../devbrain/presencial/tabela';
 import { FreeArea } from './viewport';
 import { tr } from '../../../shared/i18n';
@@ -161,6 +162,9 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi)
   // Terminal interativo (Claude Code de verdade, dentro do navegador): abrir, assumir e encerrar sessões.
   const pty = new PtyPanel(ctx);
   const terminal = new TerminalPanel(ctx, pty);
+  const cicloDia = new CicloDia(ctx, (info) => pty.openPty(info));
+  topbar.addPanelButton(cicloDia.finalizarButton);
+  topbar.addPanelButton(cicloDia.iniciarButton);
   // Histórico de sessões (terminal): botão no grupo dos painéis da barra superior.
   const history = new HistoryPopover(ctx, terminal);
   topbar.panelGroup.prepend(history.button);
@@ -238,7 +242,7 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi)
   const scrim = h('div', { class: 'ui-scrim', attrs: { 'aria-hidden': 'true' }, on: { click: () => ctx.togglePanel('sidebar', false) } });
 
   root.classList.add('ui-root');
-  root.append(timelapse.vignette, topbar.el, sidebar.el, scrim, feed.el, tabela.el, drawer.el, terminal.el, pty.el, timelapse.el, timelapse.badge, toasts.el, banner.el, update.el, empty.el, tip.el, settings.el, history.el, deliveries.el, help.el, renamer.el, live, splash.el);
+  root.append(timelapse.vignette, topbar.el, sidebar.el, scrim, feed.el, tabela.el, drawer.el, terminal.el, pty.el, timelapse.el, timelapse.badge, toasts.el, banner.el, update.el, empty.el, tip.el, settings.el, history.el, deliveries.el, help.el, renamer.el, cicloDia.el, live, splash.el);
   area = new FreeArea(world, { root, topbar: topbar.el, sidebar: sidebar.el, drawer: drawer.el, feed: feed.el }, () => ({
     sidebar: panels.sidebar,
     feed: panels.feed,
@@ -247,7 +251,7 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi)
   }));
   drawer.onLayoutChange = () => applyLayout();
 
-  const components: UiComponent[] = [topbar, sidebar, drawer, terminal, pty, history, deliveries, feed, toasts, settings, empty, banner, tip, notifier, splash, timelapse, sound, day, updateToaster, interruptor, tabela];
+  const components: UiComponent[] = [topbar, sidebar, drawer, terminal, pty, history, deliveries, feed, toasts, settings, empty, banner, tip, notifier, splash, timelapse, sound, day, updateToaster, interruptor, tabela, cicloDia];
 
   // ---------------------------------------------------------------- renderização agrupada por quadro
   let rafId = 0;

@@ -5,7 +5,7 @@
 
 HB_DIR="$DEV_BRAIN_HOME/habblaud"
 HB_URL="http://localhost:${HABBLAUD_PORT:-4747}"
-HB_DADOS="$HOME/.habblaud"
+HB_DADOS="${HABBLAUD_DATA_DIR:-$HOME/.habblaud}"
 HB_MARCA="$HB_DADOS/dev-brain-build"
 HB_PID="$HB_DADOS/server.pid"
 HB_UNIT="$HOME/.config/systemd/user/habblaud.service"
@@ -87,6 +87,7 @@ WorkingDirectory=$HB_DIR
 ExecStart=$1 dist/server/index.js
 Environment=HABBLAUD_HOST=127.0.0.1
 Environment=HABBLAUD_PTY=1
+Environment="DEV_BRAIN_HOME=$DEV_BRAIN_HOME"
 Environment=HABBLAUD_CLAUDE_BIN=$2
 Environment="PATH=$3"
 Restart=on-failure
@@ -134,7 +135,7 @@ hb_subir() {
   else
     hb_parar
     mkdir -p "$HB_DADOS"
-    (cd "$HB_DIR" && HABBLAUD_HOST=127.0.0.1 HABBLAUD_PTY=1 nohup node dist/server/index.js \
+    (cd "$HB_DIR" && DEV_BRAIN_HOME="$DEV_BRAIN_HOME" HABBLAUD_HOST=127.0.0.1 HABBLAUD_PTY=1 nohup node dist/server/index.js \
       >"$HB_DADOS/server.log" 2>&1 & echo $! > "$HB_PID")
   fi
 }

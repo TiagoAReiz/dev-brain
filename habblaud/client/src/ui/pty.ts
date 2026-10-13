@@ -139,6 +139,11 @@ export class PtyPanel implements UiComponent, PtyControl {
     this.ctx.invalidate();
   }
 
+  /** Abre a sessão já criada pelo ciclo do dia, sem criar outra. */
+  openPty(info: PtyInfo): void {
+    this.show(info, true);
+  }
+
   async takeover(agentId: string): Promise<void> {
     const p = await takeoverAgent(agentId);
     if (p) this.show(p, true);

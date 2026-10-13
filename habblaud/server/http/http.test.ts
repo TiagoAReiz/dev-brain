@@ -438,3 +438,53 @@ describe('guarda de Host/Origin', () => {
     expect(originAllowed('file://', 'localhost:4747', allowed)).toBe(false);
   });
 });
+
+
+describe('ciclo do dia na API principal', () => {
+  it('encaminha a porta local e recusa a porta remota mesmo com Host local e permissões liberadas', async () => {
+    const handler = vi.fn((req: http.IncomingMessage, res: http.ServerResponse, path: string) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ path }));
+    });
+    const env = await start({
+      devbrain: handler,
+      remote: { is: (req) => req.headers['x-test-remote'] === '1', allows: () => true },
+    });
+    try {
+      const local = await raw(env.base, '/api/devbrain/repos', { headers: { Host: 'localhost' } });
+      expect(local.status).toBe(200);
+      expect(JSON.parse(local.body)).toEqual({ path: '/api/devbrain/repos' });
+      expect(handler).toHaveBeenCalledTimes(1);
+      for (const [method, path] of [['GET', '/api/devbrain/repos'], ['GET', '/api/devbrain/resumo'], ['POST', '/api/devbrain/iniciar'], ['POST', '/api/devbrain/finalizar']]) {
+        const remote = await raw(env.base, path, { method, headers: { Host: 'localhost', 'x-test-remote': '1', ...JSON_HEADERS }, body: method === 'POST' ? '{}' : undefined });
+        expect(remote.status).toBe(403);
+      }
+      expect(handler).toHaveBeenCalledTimes(1);
+    } finally { await env.close(); env.cleanup(); }
+  });
+
+  it('sem integração responde desligado sem executar comandos', async () => {
+    const env = await start();
+    try {
+      expect((await fetch(`${env.base}/api/devbrain/repos`)).status).toBe(403);
+    } finally { await env.close(); env.cleanup(); }
+  });
+});
+
+
+describe('finalização impede novas sessões', () => {
+  it('bloqueia criar/assumir/spawn com 409, preservando leituras e encerramento', async () => {
+    const pty = vi.fn((_req: http.IncomingMessage, res: http.ServerResponse) => { res.writeHead(204); res.end(); });
+    const env = await start({ pty, isFinalizing: () => true });
+    try {
+      for (const path of ['/api/pty', '/api/pty/', '/api/agents/claude%3A1/takeover', '/api/spawn']) {
+        const response = await fetch(`${env.base}${path}`, { method: 'POST', headers: JSON_HEADERS, body: '{}' });
+        expect(response.status).toBe(409);
+      }
+      expect(pty).not.toHaveBeenCalled();
+      expect((await fetch(`${env.base}/api/pty`)).status).toBe(204);
+      expect((await fetch(`${env.base}/api/agents/claude%3A1/stop`, { method: 'POST', headers: JSON_HEADERS, body: '{}' })).status).toBe(204);
+      expect(pty).toHaveBeenCalledTimes(2);
+    } finally { await env.close(); env.cleanup(); }
+  });
+});

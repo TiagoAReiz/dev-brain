@@ -3,6 +3,10 @@
 //   npm run dev    -> tsx server/index.ts --dev (Vite em middleware mode, HMR no mesmo servidor)
 //   npm start      -> node dist/server/index.js (serve dist/client)
 import http from 'node:http';
+import { execFile } from 'node:child_process';
+import { createProjectRunner, createReportPersistence, devbrainRoot } from './devbrain/project';
+import { DiaService } from './devbrain/dia';
+import { createDevbrainRoutes } from './devbrain/http';
 import { join } from 'node:path';
 import { codexDirsRefused, isDefaultDir } from './accounts/detect';
 import { AccountsService } from './accounts/service';
@@ -274,6 +278,28 @@ const ticker = setInterval(() => {
   }
 }, 250);
 
+const brainRoot = devbrainRoot(process.env, process.cwd());
+const cicloDia = ptys ? new DiaService({
+  runner: createProjectRunner(brainRoot),
+  ptys,
+  snapshot: () => hub.current(),
+  isReal: (id) => office.has(id),
+  persist: createReportPersistence(config.dataDir),
+  shutdown: () => {
+    // O helper desabilita o serviço como brain down. O watchdog garante saída limpa se ele falhar.
+    const watchdog = setTimeout(() => shutdown('dev-brain'), 12_000);
+    watchdog.unref();
+    execFile('bash', ['-c', '. "$1/lib/habblaud.sh"; hb_parar', 'devbrain', brainRoot], {
+      env: { ...process.env, DEV_BRAIN_HOME: brainRoot, HABBLAUD_DATA_DIR: config.dataDir },
+      timeout: 10_000,
+    }, (error) => {
+      if (error) log.warn(`Falha ao desativar o serviço do Habblaud: ${errMsg(error)}`);
+      clearTimeout(watchdog);
+      shutdown('dev-brain');
+    });
+  },
+}) : undefined;
+
 const api = createApiHandler({
   renameRoom: (id, name) => {
     const path = office.roomPath(id);
@@ -295,6 +321,8 @@ const api = createApiHandler({
   permissions: permissions ? createPermissionRoutes(permissions) : undefined,
   messages: messages ? createMessageRoutes(messages) : undefined,
   pty: ptys ? createPtyRoutes(ptys) : undefined,
+  devbrain: cicloDia ? createDevbrainRoutes(cicloDia, { isRemote: isRemoteRequest }) : undefined,
+  isFinalizing: () => cicloDia?.isFinalizing ?? false,
   spawn,
   attachments,
   dictation,
