@@ -13,7 +13,9 @@ bootstrap.sh          # configura a máquina (symlinks + checagem de deps)
 new-project.sh        # cria memória + CLAUDE.md de um projeto novo
 bin/project           # CLI create/start/exit de projetos em ~/workfolder -> ~/.local/bin/project
 bin/spec-check        # valida as tarefas de uma spec e calcula as ondas -> ~/.local/bin/spec-check
-lib/                  # código Node usado pelos bins (sem dependências)
+setup.sh              # configura um PC novo do zero (chama os scripts abaixo)
+up.sh / down.sh       # sobe e desce o ambiente (dev-brain + Habblaud)
+lib/                  # código usado pelos scripts e bins (spec-check, habblaud.sh)
 global/CLAUDE.md      # instruções globais  -> ~/.claude/CLAUDE.md
 global/skills/<nome>/ # uma pasta por skill -> ~/.claude/skills/<nome>
 global/agents/<nome>.md # subagentes do time -> ~/.claude/agents/<nome>.md
@@ -24,19 +26,30 @@ memory/<projeto>/     # README, arquitetura, estado-atual, decisoes, roadmap, sp
 docs/                 # specs e planos do próprio dev-brain
 exemplos/sandbox/     # repo de teste do time de agentes
 habblaud/             # Habblaud (git subtree, nosso fork): escritório visual dos agentes
-tests/                # node --test 'tests/*.test.cjs' && bash tests/*.test.sh
+tests/                # node --test 'tests/*.test.cjs' && for t in tests/*.test.sh; do bash "$t"; done
 ```
 
 ## Máquina nova
 
 ```bash
-gh auth login                       # se ainda não estiver logado
-gh repo clone TiagoAReiz/dev-brain ~/dev-brain
-cd ~/dev-brain
-./install-tools.sh                  # só Ubuntu/WSL; pede a senha do sudo
-source ~/.bashrc
-./bootstrap.sh
+gh repo clone TiagoAReiz/dev-brain ~/dev-brain   # ou: git clone git@github.com:TiagoAReiz/dev-brain.git ~/dev-brain
+~/dev-brain/setup.sh                              # configura tudo; pede a senha do sudo e o login do GitHub
 ```
+
+O `setup.sh` é idempotente e faz, em ordem: ferramentas (`install-tools.sh`), login no GitHub, links (`bootstrap.sh`)
+e o Habblaud (build, serviço `systemd --user` e mod no Claude Code). No fim lista o que ficou para fazer na mão.
+Máquina que já tem as ferramentas: `./setup.sh --sem-ferramentas`.
+
+## Subir e descer
+
+```bash
+~/dev-brain/up.sh      # pull do dev-brain, rebuild do Habblaud se o código mudou, liga e abre http://localhost:4747
+~/dev-brain/down.sh    # desliga o Habblaud (até o próximo up), oferece commit/push da memória, avisa de projetos no workfolder
+```
+
+Com systemd do usuário o Habblaud volta sozinho no login, até você rodar o `down.sh`. Sem systemd (macOS), só pelo `up.sh`.
+
+### Partes avulsas
 
 O `install-tools.sh` é idempotente e instala:
 - **via apt:** git, gh (repo oficial), build-essential, curl, unzip, jq, shellcheck, fzf, python3 + pip + venv + pipx, OpenJDK 21 e 25 (padrão 25) e maven;
