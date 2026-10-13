@@ -1,6 +1,30 @@
 /* Modo presencial: tabela sóbria no lugar do prédio. Só vale sob html.modo-presencial. */
-html.modo-presencial {
+/* As variáveis de fonte são definidas em .ui-root (ui/styles.css): o seletor precisa vencer esse. */
+html.modo-presencial .ui-root {
   --font-px: var(--font-ui);
+}
+
+/* Sem avatares em pixel art nem "Vida social" com moedinhas. */
+html.modo-presencial .ui-avatar,
+html.modo-presencial .ui-sec.ui-social {
+  display: none !important;
+}
+
+/* Sem logotipo em pixels: no lugar dele, o nome "Agentes". */
+html.modo-presencial .ui-brand__mark,
+html.modo-presencial .ui-brand svg.ui-wordmark,
+html.modo-presencial .ui-brand svg.ui-px-icon,
+html.modo-presencial .ui-brand img {
+  display: none !important;
+}
+
+html.modo-presencial .ui-brand::after {
+  content: 'Agentes';
+  order: -1;
+  flex: none;
+  font: 650 15px/1 var(--font-ui);
+  color: var(--ui-text);
+  white-space: nowrap;
 }
 
 html.modo-presencial #world,
