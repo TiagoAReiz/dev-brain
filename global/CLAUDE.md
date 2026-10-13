@@ -26,3 +26,7 @@
 
 ## Segredos
 - Nunca leia, grave ou commite segredos (.env, chaves, tokens). Documente só *onde* ficam.
+
+## Esta máquina
+Instruções que só valem neste computador ficam em `~/.claude/CLAUDE.maquina.md` (criado pelo `bootstrap.sh`, fora do git):
+@~/.claude/CLAUDE.maquina.md

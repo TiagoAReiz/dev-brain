@@ -46,7 +46,8 @@ Fases separadas: `sudo ./install-tools.sh system` e `./install-tools.sh user`.
 Para trocar o Java padrão: `sudo update-alternatives --config java`.
 
 O `bootstrap.sh` é idempotente e pode rodar quantas vezes quiser. Ele:
-- cria symlinks de `global/CLAUDE.md` e de cada skill em `~/.claude/`, e de cada script de `bin/` em `~/.local/bin/`;
+- cria symlinks de `global/CLAUDE.md`, de cada skill e de cada subagente (`global/agents/`) em `~/.claude/`, e de cada script de `bin/` em `~/.local/bin/`;
+- cria `~/.claude/CLAUDE.maquina.md` (uma vez só) para instruções que valem só naquela máquina; o `global/CLAUDE.md` importa esse arquivo;
 - se já houver outro arquivo no destino, move para `<arquivo>.bak.<data>` e avisa (nunca apaga);
 - só **verifica** git, gh, node, python3, shellcheck e claude, sem instalar nada;
 - no fim, imprime o que foi feito, o que foi pulado e o que precisa de ação manual.

@@ -82,6 +82,20 @@ for skill in "$DEV_BRAIN_HOME"/global/skills/*/; do
   link "$skill" "$CLAUDE_DIR/skills/$(basename "$skill")"
 done
 
+for agent_md in "$DEV_BRAIN_HOME"/global/agents/*.md; do
+  [ -f "$agent_md" ] || continue
+  link "$agent_md" "$CLAUDE_DIR/agents/$(basename "$agent_md")"
+done
+
+# Instruções só desta máquina, importadas pelo global/CLAUDE.md. Criado uma vez; nunca sobrescrito.
+maquina="$CLAUDE_DIR/CLAUDE.maquina.md"
+if [ -e "$maquina" ]; then
+  skipped_items+=("já existe: ${maquina/#$HOME/\~}")
+else
+  printf '<!-- Instruções que só valem nesta máquina (fora do git). Ex.: @RTK.md -->\n' > "$maquina"
+  done_items+=("criado: ${maquina/#$HOME/\~} (mova para cá o que era só desta máquina)")
+fi
+
 for cmd in "$DEV_BRAIN_HOME"/bin/*; do
   [ -f "$cmd" ] && [ -x "$cmd" ] || continue
   link "$cmd" "$HOME/.local/bin/$(basename "$cmd")"
