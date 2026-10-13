@@ -9,6 +9,14 @@ set -uo pipefail
 DEV_BRAIN_HOME="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 WORKFOLDER="${WORKFOLDER:-$HOME/workfolder}"
 
+# Machine modes never read stdin or mix terminal messages into their JSON output.
+for arg in "$@"; do
+    if [[ "$arg" == --json ]]; then
+        command -v node >/dev/null 2>&1 || { printf 'Erro: instale Node 22+.\n' >&2; exit 1; }
+        exec node "$DEV_BRAIN_HOME/lib/project-json.cjs" "$@"
+    fi
+done
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -240,6 +248,7 @@ _project_start() {
 _save_repo() {
     local dir="$1" repo_name="$2" date_suffix="$3"
     cd "$dir" || return 1
+    dir="$(pwd -P)"
 
     # Repos git aninhados: o git add -A os trataria como submódulo e o conteúdo se perderia.
     local nested_gits
@@ -265,42 +274,18 @@ _save_repo() {
         ask "Apagar mesmo assim quando limpar a pasta?" || return 1
     fi
 
-    git add -A
-    if ! git diff --cached --quiet; then
-        git commit -q -m "work in progress - $date_suffix" || { echo -e "  ${RED}Commit falhou.${NC}"; return 1; }
-        echo "  Mudanças pendentes commitadas."
-    else
-        echo "  Nada para commitar."
-    fi
+    # Share the conservative scanner, save and fresh-origin verification with JSON mode.
+    # Ignored files and unsafe checkouts remain local even after older prompts above.
+    node - "$DEV_BRAIN_HOME/lib/project-json.cjs" "$dir" <<'NODE'
+try {
+    require(process.argv[2]).saveRepo(process.argv[3]);
+    console.log('  Projeto salvo e confirmado no origin.');
+} catch (error) {
+    console.error(`  Mantido: ${error.message}`);
+    process.exitCode = 1;
+}
+NODE
 
-    local current_branch
-    current_branch=$(git symbolic-ref --short -q HEAD) \
-        || { echo -e "  ${RED}HEAD destacado; resolva na mão.${NC}"; return 1; }
-
-    if git push -q 2>/dev/null; then
-        ok "  '$current_branch' enviado."
-    else
-        # Empurra o HEAD para uma branch nova sem trocar de branch local.
-        local wip
-        wip="wip/$(date +%Y-%m-%d-%H%M%S)"
-        warn "  Push falhou, salvando em '$wip'..."
-        git push -q origin "HEAD:refs/heads/$wip" 2>/dev/null \
-            || { echo -e "  ${RED}Não consegui enviar para o GitHub.${NC}"; return 1; }
-        ok "  Salvo em '$wip'."
-        git fetch -q origin 2>/dev/null
-    fi
-
-    # Checagem final: nada pode existir só localmente.
-    if [[ -n "$(git status --porcelain)" ]]; then
-        echo -e "  ${RED}Ainda há mudanças não commitadas.${NC}"; return 1
-    fi
-    if [[ -n "$(git log --branches --not --remotes --oneline 2>/dev/null | head -1)" ]]; then
-        echo -e "  ${RED}Há commits em branches locais que não estão no GitHub.${NC}"; return 1
-    fi
-    if [[ -n "$(git stash list 2>/dev/null)" ]]; then
-        echo -e "  ${RED}Há stashes locais.${NC}"; return 1
-    fi
-    return 0
 }
 
 # Oferece commitar e enviar a memória atualizada durante a sessão.
