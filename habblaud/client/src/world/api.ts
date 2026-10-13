@@ -91,6 +91,8 @@ export interface WorldApi {
    * snapshot do store é aplicado como carga inicial.
    */
   setPlayback?(p: WorldPlayback | null): void;
+  /** (Opcional, aditivo) Pausa o laço de quadros (nada se move nem é desenhado); false retoma. Idempotente. */
+  setPaused?(paused: boolean): void;
   /** (Opcional, aditivo) Sons do ambiente: teclado de quem trabalha à vista, elevador, rodas. */
   onSound?(cb: (cue: SoundCue) => void): () => void;
   destroy(): void;

@@ -42,6 +42,7 @@ export function createWorld(canvas: HTMLCanvasElement, store: OfficeStore): Worl
   let hover: string | null = null;
   let mouse: { x: number; y: number } | null = null;
   let raf = 0;
+  let paused = false;
   let lastTs = 0;
   let hiddenAt = 0;
   let userMoved = false;
@@ -392,6 +393,15 @@ export function createWorld(canvas: HTMLCanvasElement, store: OfficeStore): Worl
       playback = p;
       worldNow = p ? p.clock() : 0;
       rebuild();
+    },
+    setPaused: (p) => {
+      if (p === paused) return;
+      paused = p;
+      if (p) cancelAnimationFrame(raf);
+      else {
+        lastTs = 0;
+        raf = requestAnimationFrame(loop);
+      }
     },
     onSound: (cb) => {
       soundCbs.add(cb);
