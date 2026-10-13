@@ -186,3 +186,23 @@ e o degrau (ex.: `t3 haiku #2`) e `phase` com a onda, para o `/workflows` e o Ha
 - **Gate de tarefa pegar código de tarefa paralela:** mitigado pelo `{arquivos}`; o gate de onda pega o resto.
 - **Tarefa P mal estimada:** aparece na métrica (P que subiu para Sonnet); o limite de tamanho no `spec-check` reduz.
 - **QA no Chrome real competir com o uso do usuário:** a QA roda uma vez, no fim, e não em paralelo.
+
+## Validação (2026-10-13)
+
+E2E no `exemplos/sandbox` (cópia em diretório temporário), workflow `wf_8e870fe6-999`: 12 agentes, 94 s, ~98 mil tokens de subagentes.
+
+| Tarefa | Tam. | Status | Modelos | Tentativas | Revisões |
+|---|---|---|---|---|---|
+| 1 slugify | P | ok | haiku | 1 | 1 |
+| 2 formatarBRL | P | ok | haiku | 1 | 1 |
+| 3 urlProduto | P | ok | haiku | 1 | 1 |
+
+- Ondas: `[1, 2]` e `[3]`; gate de onda ok nas duas, sem correção de onda.
+- Commits: `4d1d701 slugify (tarefa 1)`, `160aced formatarBRL (tarefa 2)`, `b5a6211 urlProduto (tarefa 3)`; autor único, sem atribuição de IA; working tree limpo; 11/11 testes de aceite.
+- Escada: não foi exercitada no e2e (o Haiku acertou a moeda de primeira, evitando o `Intl`). Escada, spec inválida, revisão
+  reprovada, gate de onda bloqueado e exceção de agente são cobertos pelo simulador `tests/workflow-sim.test.cjs`.
+- Habblaud: lê `subagents/workflows/<runId>/` e mostra os subagentes do workflow no escritório.
+- Ajustes feitos durante a validação:
+  - a 1ª execução falhou com `agent type 'gate' not found` (agentes instalados com a sessão já aberta; o registro recarregou depois sozinho);
+  - isso revelou dois bugs, corrigidos: exceção de agente dentro do pipeline deixava a tarefa `pendente` (tratada como pronta) e exceção no gate derrubava o workflow. Agora vira `bloqueada` com motivo `erro`;
+  - Habblaud em modo Node (systemd do usuário) no Linux nativo, porque o container (UID 1000) não lê `~/.claude` com permissão 700.
