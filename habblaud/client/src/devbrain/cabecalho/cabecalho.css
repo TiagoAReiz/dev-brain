@@ -1,0 +1,116 @@
+/* Grupo segmentado de botões do header: Iniciar dia, Finalizar dia, Presencial. */
+.dbh-grupo {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+  height: 28px;
+  flex: none;
+}
+
+.dbh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 0;
+  background: var(--ui-bg-soft);
+  color: var(--ui-text);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  position: relative;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+/* Bordas coladas (a vizinha divide a linha) e raios só nas pontas. */
+.dbh-grupo > .dbh-btn + .dbh-btn {
+  margin-left: -1px;
+}
+
+.dbh-grupo > .dbh-btn:first-child {
+  border-top-left-radius: var(--radius-sm);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.dbh-grupo > .dbh-btn:last-child {
+  border-top-right-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+/* Fora de grupo, o botão volta a ter cantos arredondados. */
+.dbh-btn:only-child {
+  border-radius: var(--radius-sm);
+}
+
+.dbh-ico {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  color: var(--ui-muted);
+  transition: color 0.15s;
+}
+
+.dbh-ico-svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.dbh-rot {
+  line-height: 1;
+}
+
+.dbh-btn:hover:not(:disabled) {
+  background: var(--ui-bg-hover);
+  z-index: 1;
+}
+
+.dbh-btn:hover:not(:disabled) .dbh-ico {
+  color: var(--ui-text);
+}
+
+/* Variante acento sutil: só texto e ícone. */
+.dbh-btn--acento,
+.dbh-btn--acento .dbh-ico {
+  color: var(--ui-accent);
+}
+
+.dbh-btn.is-on {
+  border-color: rgba(124, 200, 255, 0.55);
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent);
+  z-index: 1;
+}
+
+.dbh-btn.is-on .dbh-ico {
+  color: var(--ui-accent);
+}
+
+.dbh-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dbh-btn:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+  z-index: 2;
+}
+
+/* Janela estreita: só o ícone (o title continua com o texto). */
+@media (max-width: 899px) {
+  .dbh-rot {
+    display: none;
+  }
+
+  .dbh-btn {
+    padding: 0 8px;
+  }
+}
