@@ -43,6 +43,7 @@ memory/<projeto>/     # README, arquitetura, estado-atual, decisoes, roadmap, sp
 docs/                 # specs e planos do próprio dev-brain
 exemplos/sandbox/     # repo de teste do time de agentes
 habblaud/             # Habblaud (git subtree, nosso fork): escritório visual dos agentes
+vscode/                # extensão do VS Code para o Habblaud (README próprio)
 tests/                # node --test 'tests/*.test.cjs' && for t in tests/*.test.sh; do bash "$t"; done
 ```
 
@@ -260,6 +261,12 @@ Atualizar: `git pull && npm install && npm run build` (ou `npm run docker:up`), 
 Desinstalar: `npm run mod:uninstall` e pare o serviço ou o container.
 Atenção: o plugin de mensagens deixa qualquer processo local mandar prompts às sessões abertas; com o alias de bypass,
 isso vira execução sem aprovação. Para ficar sem ele: `npm run mod:install -- --sem-mensagens`.
+
+## Habblaud dentro do VS Code
+
+A extensão em `vscode/` traz o escritório para uma aba do VS Code (Remote-WSL), com uma barra lateral de agentes
+e os arquivos que cada um mexeu, e uma barra de status com quantos trabalham e quantos esperam por você.
+Requer o Habblaud no ar e reiniciado (`systemctl --user restart habblaud`). Build, instalação e QA: [vscode/README.md](vscode/README.md).
 
 ## Memória privada
 
