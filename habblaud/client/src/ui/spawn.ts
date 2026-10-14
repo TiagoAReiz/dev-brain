@@ -14,6 +14,7 @@ import type { PtyInfo } from '../../../shared/types';
 import { SeletorAssinatura } from '../devbrain/assinatura/seletor';
 import { dicaAssinatura } from '../devbrain/assinatura/modelo';
 import { createPty } from './ptyapi';
+import { NavegadorPastas } from '../devbrain/pastas/navegador';
 
 export const SPAWN_PROMPT_MAX = 8_000;
 export const MAX_FILES = 8;
@@ -122,6 +123,8 @@ export class SpawnPanel {
   readonly el: HTMLElement;
   private readonly folderList: HTMLElement;
   private readonly otherBtn: HTMLButtonElement;
+  private readonly procurarBtn: HTMLButtonElement;
+  private readonly nav: NavegadorPastas;
   private readonly folder: HTMLInputElement;
   private readonly prompt: HTMLTextAreaElement;
   private readonly fileInput: HTMLInputElement;
@@ -146,6 +149,8 @@ export class SpawnPanel {
   constructor(private readonly ctx: UiContext) {
     this.folderList = h('div', { class: 'ui-spawn__folders', role: 'radiogroup', attrs: { 'aria-label': tr('Projetos recentes') } });
     this.otherBtn = h('button', { class: 'ui-spawn__other', type: 'button', on: { click: () => this.showOther(true) } }, tr('+ Outra pasta'));
+    this.nav = new NavegadorPastas({ onEscolher: (c) => this.showOther(true, c) });
+    this.procurarBtn = h('button', { class: 'ui-spawn__other', type: 'button', on: { click: () => this.toggleNav() } }, tr('Procurar…'));
     this.folder = h('input', {
       class: 'ui-rename__input ui-spawn__path',
       type: 'text',
@@ -206,6 +211,8 @@ export class SpawnPanel {
         h('p', { class: 'ui-spawn__label', attrs: { id: 'ui-spawn-folders-label' }, text: tr('Projeto') }),
         this.folderList,
         this.otherBtn,
+        this.procurarBtn,
+        this.nav.el,
         this.folder,
         h('label', { class: 'ui-spawn__label', attrs: { for: 'ui-spawn-prompt' }, text: tr('Pedido') }),
         this.prompt,
@@ -252,6 +259,7 @@ export class SpawnPanel {
 
   hide(): void {
     this.dictate.cancel();
+    this.nav.fechar();
     if (typeof this.el.hidePopover === 'function' && this.isOpen) this.el.hidePopover();
     this.el.classList.remove('is-open');
     this.anchor?.setAttribute('aria-expanded', 'false');
@@ -316,11 +324,18 @@ export class SpawnPanel {
   }
 
   private pick(path: string): void {
+    this.nav.fechar();
     this.selected = path;
     this.typing = false;
     setHidden(this.folder, true);
     this.otherBtn.classList.remove('is-on');
     this.renderFolders();
+  }
+
+  /** Procurar…: abre o navegador na pasta atual (campo ou selecionada), ou fecha se já aberto. */
+  private toggleNav(): void {
+    if (this.nav.aberto) return this.nav.fechar();
+    this.nav.abrir((this.typing ? this.folder.value.trim() : this.selected) || undefined);
   }
 
   private showOther(on: boolean, value?: string): void {
