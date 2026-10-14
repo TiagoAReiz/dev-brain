@@ -6,6 +6,11 @@
   "version": "0.1.0",
   "private": true,
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TiagoAReiz/dev-brain.git",
+    "directory": "vscode"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
