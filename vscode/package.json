@@ -1,0 +1,83 @@
+{
+  "name": "habblaud-vscode",
+  "displayName": "Habblaud",
+  "description": "Habblaud dentro do VS Code: escritório, agentes e arquivos mexidos.",
+  "publisher": "tiagoareiz",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "extensionKind": ["workspace"],
+  "main": "./dist/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "configuration": {
+      "title": "Habblaud",
+      "properties": {
+        "habblaud.url": {
+          "type": "string",
+          "default": "http://localhost:4747",
+          "description": "URL do servidor do Habblaud."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "habblaud",
+          "title": "Habblaud",
+          "icon": "$(organization)"
+        }
+      ]
+    },
+    "views": {
+      "habblaud": [
+        {
+          "id": "habblaud.agentes",
+          "name": "Agentes"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "habblaud.agentes",
+        "contents": "Habblaud não está no ar. [Abrir escritório](command:habblaud.abrirEscritorio)"
+      }
+    ],
+    "commands": [
+      { "command": "habblaud.abrirEscritorio", "title": "Habblaud: abrir escritório" },
+      { "command": "habblaud.atualizar", "title": "Habblaud: atualizar" },
+      { "command": "habblaud.abrirPastaDaSala", "title": "Habblaud: abrir pasta da sala" },
+      { "command": "habblaud.novoAgenteAqui", "title": "Habblaud: novo agente nesta pasta" },
+      { "command": "habblaud.abrirArquivo", "title": "Habblaud: abrir arquivo" }
+    ],
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "habblaud.abrirPastaDaSala",
+          "when": "view == habblaud.agentes && viewItem == sala"
+        }
+      ],
+      "commandPalette": [
+        { "command": "habblaud.abrirArquivo", "when": "false" }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "empacotar": "vsce package --no-dependencies -o habblaud-vscode.vsix"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/vscode": "1.90.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}
