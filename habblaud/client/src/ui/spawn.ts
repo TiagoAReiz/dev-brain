@@ -227,6 +227,13 @@ export class SpawnPanel {
       this.anchor?.setAttribute('aria-expanded', String(this.isOpen));
       if (!this.isOpen) this.dictate.cancel();
     });
+    this.el.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && this.nav.aberto) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.nav.fechar();
+      }
+    });
   }
 
   get isOpen(): boolean {
