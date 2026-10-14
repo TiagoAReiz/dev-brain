@@ -18,6 +18,7 @@ import { tr } from '../../shared/i18n';
 import type { SpawnService } from '../spawn/spawn';
 import { ATTACHMENT_BODY_MAX, parseAttachment, type AttachmentStore } from '../spawn/attachments';
 import type { SpawnFolder } from '../spawn/folders';
+import { BrowseError, type BrowseResult } from '../spawn/browse';
 import { AUDIO_BODY_MAX, type DictationService } from '../dictation/dictation';
 import type { DeliveryIndex } from '../deliveries/deliveries';
 import type { FileFetcher } from '../deliveries/fetcher';
@@ -71,6 +72,8 @@ export interface ApiDeps {
   spawn?: SpawnService;
   /** Pastas sugeridas no "Novo agente" (GET /api/spawn/folders; spawn/folders.ts): projetos recentes. */
   spawnFolders?: () => Promise<SpawnFolder[]>;
+  /** Navegador de pastas do "Novo agente" (GET /api/spawn/browse; spawn/browse.ts). */
+  browseFolders?: (path: string | undefined, hidden: boolean) => Promise<BrowseResult>;
   /** Anexos do "Novo agente" (POST /api/spawn/attachments; spawn/attachments.ts). */
   attachments?: AttachmentStore;
   /** Ditado (/api/dictation e, para o auxiliar do host, /api/host/dictation/*; dictation/dictation.ts). */
@@ -495,6 +498,16 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
       else if (path === '/api/spawn/folders') {
         if (!isRead) methodNotAllowed(res, 'GET');
         else (deps.spawnFolders ?? (async () => []))().then((folders) => sendJson(res, 200, { folders }), (err) => fail(res, err));
+      } else if (path === '/api/spawn/browse') {
+        if (method !== 'GET') methodNotAllowed(res, 'GET');
+        else if (!deps.browseFolders) sendJson(res, 403, { error: tr('navegador de pastas desligado') });
+        else
+          deps
+            .browseFolders(url.searchParams.get('path') ?? undefined, url.searchParams.get('hidden') === '1')
+            .then(
+              (result) => sendJson(res, 200, result),
+              (err) => (err instanceof BrowseError ? sendJson(res, err.status, { error: err.message }) : fail(res, err)),
+            );
       } else if (path === '/api/spawn/attachments') {
         const store = deps.attachments;
         if (method !== 'POST') methodNotAllowed(res, 'POST');
