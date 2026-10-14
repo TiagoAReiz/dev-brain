@@ -5,31 +5,20 @@ Fonte única do meu workflow com IA: memória por projeto, skills, `CLAUDE.md` g
 
 ## Começo rápido
 
-Precisa de **Linux, macOS ou WSL** (no Windows, use o WSL), `git` e o [Claude Code](https://claude.com/claude-code) instalado.
+Cole isto no Claude Code e deixe ele fazer:
+
+> Instale o dev-brain: clone https://github.com/TiagoAReiz/dev-brain.git em ~/dev-brain e rode ~/dev-brain/bootstrap.sh. Depois me ajude a configurar a memória do meu projeto com a skill kickoff.
+
+Ou na mão (Linux, macOS ou WSL; o repo é público, sem login):
 
 ```bash
-# 1. baixe (o repo é público, não precisa de login)
 git clone https://github.com/TiagoAReiz/dev-brain.git ~/dev-brain
-
-# 2. instale os links (CLAUDE.md global, skills, subagentes e os comandos brain/project)
 ~/dev-brain/bootstrap.sh
-
-# 3. exporte a variável que o Claude usa para achar a memória (a linha que o passo 2 mostrar; vale colar no ~/.bashrc ou ~/.zshrc)
-export DEV_BRAIN_HOME="$HOME/dev-brain"
-
-# 4. crie a memória do seu primeiro projeto e abra o Claude nele
-~/dev-brain/new-project.sh meu-app ~/code/meu-app
-cd ~/code/meu-app && claude
 ```
 
-No Claude, peça para **"usar a skill kickoff"** (preenche a memória do projeto conversando com você) e, depois,
-qualquer mudança de código segue a skill **`implementar`**: o Claude planeja com você, grava a spec e um time de subagentes implementa.
-
-- **Máquina nova inteira** (instala ferramentas, serviço do Habblaud etc.): rode `~/dev-brain/setup.sh` no lugar do passo 2. Veja "PC novo" mais abaixo.
-- **Suas memórias ficam só com você.** O passo 4 cria a pasta `memory/` local. Para versioná-la, rode `git -C ~/dev-brain/memory init` e aponte para um repo **seu** (de preferência privado). Detalhes em "Memória privada".
-- Para atualizar o dev-brain depois: `git -C ~/dev-brain pull`.
-
-Roda em **Linux, macOS e WSL**. No Windows, use dentro do WSL (o Git Bash não cria symlinks confiáveis).
+Pronto. Abra o `claude` no seu projeto e peça o que quiser: mudanças de código seguem a skill `implementar` sozinhas.
+As memórias ficam só com você (pasta local `memory/`); veja "Memória privada" para versionar num repo seu.
+Máquina nova inteira (ferramentas, Habblaud): `~/dev-brain/setup.sh`. Atualizar: `git -C ~/dev-brain pull`.
 
 ## Estrutura
 
