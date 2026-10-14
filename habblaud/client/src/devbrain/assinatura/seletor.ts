@@ -115,7 +115,10 @@ export class SeletorAssinatura {
     setStyleVar(no.btn, '--dbs-cor', op.cor);
     setText(no.short, op.short);
     setText(no.nome, op.nome);
-    setText(no.fonte, op.fonte);
+    // Quando o nome já é a fonte (ex.: "Codex"), não repete o texto no chip.
+    const repetida = op.nome.toLowerCase() === op.fonte.toLowerCase();
+    setText(no.fonte, repetida ? '' : op.fonte);
+    setHidden(no.fonte, repetida);
     setAttr(no.btn, 'aria-checked', String(marcada));
     setAttr(no.btn, 'tabindex', marcada || (!this.escolhida && op.disponivel) ? '0' : '-1');
     no.btn.classList.toggle('is-on', marcada);

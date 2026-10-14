@@ -17,7 +17,7 @@
 .dbs-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -29,7 +29,7 @@
   box-sizing: border-box;
   max-width: 100%;
   min-width: 0;
-  min-height: 40px;
+  min-height: 44px;
   padding: 6px 12px 6px 10px;
   border-radius: 8px;
   border: 1px solid var(--ui-line);
@@ -54,11 +54,16 @@
 
 .dbs-chip:focus-visible {
   outline: 2px solid var(--ui-accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
 .dbs-chip:disabled {
   opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ui-spawn__attach:disabled {
+  opacity: .45;
   cursor: not-allowed;
 }
 
