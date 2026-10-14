@@ -162,6 +162,8 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi)
   // Terminal interativo (Claude Code de verdade, dentro do navegador): abrir, assumir e encerrar sessões.
   const pty = new PtyPanel(ctx);
   const terminal = new TerminalPanel(ctx, pty);
+  // O if cobre o TopBar simulado nos testes.
+  if (topbar.spawnPanel) topbar.spawnPanel.onOpenPty = (info) => pty.openPty(info);
   const cicloDia = new CicloDia(ctx, (info) => pty.openPty(info));
   topbar.addPanelButton(grupoCabecalho(cicloDia.iniciarButton, cicloDia.finalizarButton, interruptor.button));
   // Histórico de sessões (terminal): botão no grupo dos painéis da barra superior.

@@ -46,7 +46,7 @@ export class TopBar implements UiComponent {
   private timelapseBtn: HTMLButtonElement;
   readonly settingsBtn: HTMLButtonElement;
   private readonly spawnBtn: HTMLButtonElement;
-  private readonly spawnPanel: SpawnPanel;
+  readonly spawnPanel: SpawnPanel;
   /** Grupo dos botões de painéis (feed, configurações, ajuda); o histórico entra aqui (ui/index.ts). */
   readonly panelGroup: HTMLElement;
 

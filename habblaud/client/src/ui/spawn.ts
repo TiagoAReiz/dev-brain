@@ -10,6 +10,10 @@ import type { UiContext } from './context';
 import { DictationButton, dictationAvailable, insertDictation } from './dictation';
 import { h, iconButton, setHidden, setText } from './dom';
 import { ICONS } from './icons';
+import type { PtyInfo } from '../../../shared/types';
+import { SeletorAssinatura } from '../devbrain/assinatura/seletor';
+import { dicaAssinatura } from '../devbrain/assinatura/modelo';
+import { createPty } from './ptyapi';
 
 export const SPAWN_PROMPT_MAX = 8_000;
 export const MAX_FILES = 8;
@@ -125,8 +129,15 @@ export class SpawnPanel {
   private readonly dictate: DictationButton;
   private readonly submitBtn: HTMLButtonElement;
   private readonly status: HTMLElement;
+  private readonly seletor: SeletorAssinatura;
+  private readonly attachBtn: HTMLButtonElement;
+  private readonly hint: HTMLElement;
+  private readonly hintPadrao = tr('Começa na hora uma sessão do Claude Code em segundo plano no computador, na pasta escolhida; as permissões chegam aqui. Pasta que o Claude Code ainda não conhece abre no app do Claude e espera o Enter lá. Anexos vão para ~/.habblaud/attachments e o pedido leva os caminhos.');
+  /** Abre o terminal interativo (conta do Codex). */
+  onOpenPty?: (info: PtyInfo) => void;
   private anchor?: HTMLElement;
   private busy = false;
+  private dictateOk = false;
   private folders: FolderOption[] = [];
   private selected = '';
   private typing = false;
@@ -153,6 +164,7 @@ export class SpawnPanel {
     const attachBtn = h('button', { class: 'ui-btn ui-spawn__attach', type: 'button', attrs: { title: tr('Anexar imagens ou arquivos ao pedido') }, on: { click: () => this.fileInput.click() } });
     const clip = h('span', { attrs: { 'aria-hidden': 'true' } });
     clip.innerHTML = ICONS.attach;
+    this.attachBtn = attachBtn;
     attachBtn.append(clip, h('span', { text: tr('Anexar') }));
     this.dictate = new DictationButton(
       (t) => {
@@ -165,6 +177,8 @@ export class SpawnPanel {
     setHidden(this.dictate.el, true);
     this.fileList = h('ul', { class: 'ui-spawn__files', attrs: { 'aria-label': tr('Anexos') } });
     this.submitBtn = h('button', { class: 'ui-btn ui-perm__btn ui-perm__btn--allow ui-spawn__go', type: 'button', on: { click: () => void this.submit() } }, tr('Começar'));
+    this.hint = h('p', { class: 'ui-rename__hint', text: this.hintPadrao });
+    this.seletor = new SeletorAssinatura(ctx, () => this.applyAccount());
     this.status = h('p', { class: 'ui-rename__hint ui-spawn__status', attrs: { role: 'status', 'aria-live': 'polite' } });
     for (const field of [this.folder, this.prompt] as HTMLElement[]) {
       field.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -188,6 +202,7 @@ export class SpawnPanel {
       h(
         'div',
         { class: 'ui-set-group ui-spawn__body' },
+        this.seletor.el,
         h('p', { class: 'ui-spawn__label', attrs: { id: 'ui-spawn-folders-label' }, text: tr('Projeto') }),
         this.folderList,
         this.otherBtn,
@@ -196,7 +211,7 @@ export class SpawnPanel {
         this.prompt,
         h('div', { class: 'ui-spawn__tools' }, this.dictate.el, attachBtn, this.fileInput),
         this.fileList,
-        h('p', { class: 'ui-rename__hint', text: tr('Começa na hora uma sessão do Claude Code em segundo plano no computador, na pasta escolhida; as permissões chegam aqui. Pasta que o Claude Code ainda não conhece abre no app do Claude e espera o Enter lá. Anexos vão para ~/.habblaud/attachments e o pedido leva os caminhos.') }),
+        this.hint,
         this.submitBtn,
         this.status,
       ),
@@ -220,6 +235,8 @@ export class SpawnPanel {
     if (this.isOpen) return this.hide();
     // Primeiro com o que o escritório já sabe; a lista do servidor (histórico) chega logo depois.
     if (!this.folders.length) this.setFolders(spawnFolders(this.ctx.store.snapshot).map((path) => ({ path, name: path.split(/[\\/]/).pop() || path, lastAt: 0 })));
+    this.seletor.render();
+    this.applyAccount();
     void this.loadFolders();
     void this.checkDictation();
     if (!this.busy) setText(this.status, '');
@@ -250,7 +267,17 @@ export class SpawnPanel {
   }
 
   private async checkDictation(): Promise<void> {
-    setHidden(this.dictate.el, !(await dictationAvailable()));
+    this.dictateOk = await dictationAvailable();
+    this.applyAccount();
+  }
+
+  /** Codex só recebe texto: sem anexos nem ditado; a dica acompanha a conta. */
+  private applyAccount(): void {
+    const op = this.seletor.selecionada();
+    const codex = op?.provider === 'codex';
+    this.attachBtn.disabled = codex;
+    setHidden(this.dictate.el, codex || !this.dictateOk);
+    setText(this.hint, codex || !this.seletor.el.hidden ? dicaAssinatura(op) : this.hintPadrao);
   }
 
   private setFolders(list: FolderOption[]): void {
@@ -352,9 +379,22 @@ export class SpawnPanel {
     if (this.dictate.busy) return this.say(tr('Espere o ditado terminar.'), true);
     const folder = (this.typing ? this.folder.value : this.selected).trim();
     if (!folder) return this.say(tr('Escolha o projeto.'), true);
+    const op = this.seletor.selecionada();
     this.busy = true;
     this.submitBtn.disabled = true;
     try {
+      if (op?.provider === 'codex') {
+        this.say(tr('Abrindo o terminal…'));
+        const info = await createPty(folder, op.id, this.prompt.value);
+        if (info) {
+          this.onOpenPty?.(info);
+          this.prompt.value = '';
+          writePref(folder);
+          this.say('');
+          this.hide();
+        }
+        return;
+      }
       const ids: string[] = [];
       for (const [i, f] of this.files.entries()) {
         this.say(this.files.length > 1 ? tr('Enviando anexos ({0} de {1})…', [i + 1, this.files.length]) : tr('Enviando o anexo…'));
@@ -369,7 +409,7 @@ export class SpawnPanel {
       let info = await api<SpawnInfo>('/api/spawn', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder, prompt: this.prompt.value, ...(ids.length ? { attachments: ids } : {}) }),
+        body: JSON.stringify({ folder, prompt: this.prompt.value, ...(op ? { account: op.id } : {}), ...(ids.length ? { attachments: ids } : {}) }),
       });
       const end = Date.now() + WAIT_MS;
       while ((info.status === 'queued' || info.status === 'sent') && Date.now() < end) {
