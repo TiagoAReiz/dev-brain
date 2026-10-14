@@ -10,7 +10,7 @@ function escaparHtml(s: string): string {
 
 // Literal JS seguro para ficar dentro de <script> (sem fechar a tag).
 function literalJs(s: string): string {
-  return JSON.stringify(s).replace(/</g, '\\u003c').replace(/ /g, '\\u2028').replace(/ /g, '\\u2029');
+  return JSON.stringify(s).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 }
 
 function montarHtml(url: string, nonce: string): string {
