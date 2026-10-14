@@ -22,6 +22,13 @@ export function activate(ctx: vscode.ExtensionContext): void {
   const arvore = new ArvoreAgentes();
   const barra = criarStatusBar();
   let online = false;
+  let offlineAtual: boolean | undefined;
+  const definirOffline = (valor: boolean): void => {
+    if (valor === offlineAtual) return;
+    offlineAtual = valor;
+    void vscode.commands.executeCommand('setContext', 'habblaud.offline', valor);
+  };
+  definirOffline(true);
 
   ctx.subscriptions.push(barra, vscode.window.createTreeView('habblaud.agentes', { treeDataProvider: arvore }));
 
@@ -107,10 +114,12 @@ export function activate(ctx: vscode.ExtensionContext): void {
       try {
         const s = await cliente.snapshot();
         online = true;
+        definirOffline(false);
         arvore.atualizar(s);
         barra.atualizar(resumo(s));
       } catch {
         online = false;
+        definirOffline(true);
         arvore.atualizar(null);
         barra.atualizar(null);
         void vscode.window.showWarningMessage('Habblaud: não está no ar.');
@@ -126,12 +135,14 @@ export function activate(ctx: vscode.ExtensionContext): void {
   assinatura = cliente.assinar(
     (s) => {
       online = true;
+      definirOffline(false);
       arvore.atualizar(s);
       barra.atualizar(resumo(s));
     },
     (on) => {
       online = on;
       if (!on) {
+        definirOffline(true);
         arvore.atualizar(null); // árvore vazia: a viewsWelcome ("não está no ar") aparece
         barra.atualizar(null);
       }

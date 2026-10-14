@@ -44,7 +44,13 @@
     "viewsWelcome": [
       {
         "view": "habblaud.agentes",
-        "contents": "Habblaud não está no ar. [Abrir escritório](command:habblaud.abrirEscritorio)"
+        "contents": "Habblaud não está no ar. [Abrir escritório](command:habblaud.abrirEscritorio)",
+        "when": "habblaud.offline"
+      },
+      {
+        "view": "habblaud.agentes",
+        "contents": "Nenhum agente no escritório agora. [Abrir escritório](command:habblaud.abrirEscritorio)",
+        "when": "!habblaud.offline"
       }
     ],
     "commands": [
