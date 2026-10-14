@@ -60,6 +60,7 @@ import {
   updateStatusDot,
 } from './widgets';
 import { tr } from '../../../shared/i18n';
+import { botaoAbrirNoVscode } from '../devbrain/vscode/ponte';
 
 /** Itens da linha do tempo mostrados de início; "Mostrar mais" acrescenta outro tanto. */
 const TIMELINE_STEP = 15;
@@ -878,7 +879,7 @@ class RoomView {
         'div',
         { class: 'ui-room-hero' },
         this.swatch,
-        h('div', { class: 'ui-hero__text' }, h('div', { class: 'ui-room-hero__title' }, this.name, this.renameBtn), h('span', { class: 'ui-copy-row' }, this.path, copyButton(() => this.last?.path ?? '', tr('Copiar caminho')))),
+        h('div', { class: 'ui-hero__text' }, h('div', { class: 'ui-room-hero__title' }, this.name, this.renameBtn), h('span', { class: 'ui-copy-row' }, this.path, copyButton(() => this.last?.path ?? '', tr('Copiar caminho')), botaoAbrirNoVscode(() => this.last?.path ?? ''))),
       ),
       this.gone,
       h('div', { class: 'ui-status' }, accsEl, h('span', { class: 'ui-status__actions' }, this.newBtn, centerBtn)),
