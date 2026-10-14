@@ -38,7 +38,7 @@ import { createMessageRoutes } from './messages/http';
 import { MessageRegistry } from './messages/registry';
 import type { CodexLive } from './sources/codex/live';
 import { ClaudeWatcher } from './sources/watcher';
-import { discoverCodexDirs } from './sources/codex/accounts';
+import { defaultCodexHome, discoverCodexDirs } from './sources/codex/accounts';
 import { CodexHistory } from './sources/codex/history';
 import { CodexSource } from './sources/codex/source';
 import { createBuildReader } from './build';
@@ -198,8 +198,13 @@ const ptyOptIn = isTruthy(ptyFlag);
 const spawnOn = config.messages && ptyOptIn;
 const attachments = spawnOn ? new AttachmentStore() : undefined;
 const spawnBin = config.inDocker ? undefined : runnableClaudeBin(process.env);
+// Assinatura do Novo agente em segundo plano: só contas do Claude (no Docker a conta não é repassada ao auxiliar).
+const spawnAccountDir = (id: string) => {
+  const e = accounts.entries().find((a) => a.id === id);
+  return e && { dir: e.dir, isDefault: isDefaultDir(e.dir, config.home) };
+};
 const spawn = spawnOn
-  ? new SpawnService(config.inDocker ? { attachments } : { opener: createOpener(), cli: spawnBin ? createCliRunner(spawnBin) : undefined, attachments })
+  ? new SpawnService(config.inDocker ? { attachments } : { opener: createOpener(), cli: spawnBin ? createCliRunner(spawnBin) : undefined, attachments, accountDir: spawnAccountDir })
   : undefined;
 // Ditado: no Docker quem transcreve é o auxiliar do host; no Node, o servidor, se achar o Whisper local.
 const whisper = config.messages && !config.inDocker ? findWhisper() : undefined;
@@ -241,11 +246,17 @@ else {
     if (screen.reason) log.warn(tr('Terminal interativo sem a tela completa ({0}): ao reconectar, modos como a colagem entre colchetes podem se perder.', [screen.reason]));
   }
 }
+// Executável do Codex para as contas do Codex no terminal interativo (ausente = essas contas não abrem).
+const ptyCodexBin = findCodexBin(process.env);
 const ptys = spawnPty
   ? new PtyManager({
       spawn: spawnPty,
       claudeBin: claudeBin ?? 'claude',
-      accounts: () => accounts.entries().map((a) => ({ id: a.id, dir: a.dir, isDefault: isDefaultDir(a.dir, config.home) })),
+      codexBin: ptyCodexBin,
+      accounts: () => [
+        ...accounts.entries().map((a) => ({ id: a.id, dir: a.dir, isDefault: isDefaultDir(a.dir, config.home), provider: 'claude' as const })),
+        ...accounts.entriesOf('codex').map((e) => ({ id: e.id, dir: e.dir, isDefault: e.dir === defaultCodexHome(process.env, config.home), provider: 'codex' as const })),
+      ],
       agent: (id) => {
         const a = office.get(id);
         return a && { id: a.id, kind: a.kind, account: a.account, sessionId: a.sessionId, cwd: office.roomPath(a.roomId) };
@@ -458,6 +469,7 @@ server.listen(config.port, config.host, () => {
   if (config.terminal) log.info(tr('   Terminal: ligado (acesso só local).'));
   else log.info(tr('   Terminal: desligado ({0}).', [terminalOffReason(process.env, config.host, config.inDocker)]));
   log.info(ptys ? tr('   Terminal interativo: ligado ({0}).', [claudeBin]) : tr('   Terminal interativo: {0}.', [ptyOff ?? tr('desligado')]));
+  if (ptys && ptyCodexBin) log.info(tr('   Terminal interativo (Codex): ligado ({0}).', [ptyCodexBin]));
   log.info(
     !spawn
       ? tr('   Novo agente: desligado ({0}).', [!ptyOptIn ? tr('ligue com HABBLAUD_PTY=1') : tr('mesma trava das mensagens')])
