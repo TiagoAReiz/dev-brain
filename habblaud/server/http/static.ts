@@ -81,8 +81,8 @@ export function createStaticHandler(distDir: string): (req: IncomingMessage, res
       ETag: etag,
       'Last-Modified': new Date(st.mtimeMs).toUTCString(),
       'X-Content-Type-Options': 'nosniff',
-      // Só se embute em si mesma e no webview do VS Code (não em sites de terceiros). Substitui X-Frame-Options.
-      'Content-Security-Policy': "frame-ancestors 'self' vscode-webview:",
+      // Só se embute em si mesma e no webview do VS Code e no workbench (vscode-file:), não em sites de terceiros. Substitui X-Frame-Options.
+      'Content-Security-Policy': "frame-ancestors 'self' vscode-webview: vscode-file:",
       'Referrer-Policy': 'no-referrer',
     };
     if (isNotModified(req, etag, st.mtimeMs)) {
