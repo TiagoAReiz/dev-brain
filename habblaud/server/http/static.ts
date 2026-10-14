@@ -81,8 +81,8 @@ export function createStaticHandler(distDir: string): (req: IncomingMessage, res
       ETag: etag,
       'Last-Modified': new Date(st.mtimeMs).toUTCString(),
       'X-Content-Type-Options': 'nosniff',
-      // A página não deve ser embutida em sites de terceiros (clickjacking nas configurações).
-      'X-Frame-Options': 'DENY',
+      // Só se embute em si mesma e no webview do VS Code (não em sites de terceiros). Substitui X-Frame-Options.
+      'Content-Security-Policy': "frame-ancestors 'self' vscode-webview:",
       'Referrer-Policy': 'no-referrer',
     };
     if (isNotModified(req, etag, st.mtimeMs)) {

@@ -241,7 +241,13 @@ describe('API HTTP', () => {
     expect(page.status).toBe(200);
     expect(await page.text()).toContain('<title>Habblaud</title>');
     expect(page.headers.get('cache-control')).toBe(REVALIDATE);
-    expect(page.headers.get('x-frame-options')).toBe('DENY');
+    // Páginas estáticas podem ser embutidas no webview do VS Code (e não mais X-Frame-Options).
+    expect(page.headers.get('content-security-policy')).toBe("frame-ancestors 'self' vscode-webview:");
+    expect(page.headers.get('x-frame-options')).toBeNull();
+    const pageAgain = await fetch(`${env.base}/sala/qualquer`, { headers: { 'If-None-Match': page.headers.get('etag')! } });
+    expect(pageAgain.status).toBe(304);
+    expect(pageAgain.headers.get('content-security-policy')).toBe("frame-ancestors 'self' vscode-webview:");
+    expect(pageAgain.headers.get('x-frame-options')).toBeNull();
     const bundle = await fetch(`${env.base}/bundle/main-abc12345.js`);
     expect(bundle.headers.get('cache-control')).toBe(IMMUTABLE);
     expect(bundle.headers.get('content-type')).toMatch(/javascript/);
