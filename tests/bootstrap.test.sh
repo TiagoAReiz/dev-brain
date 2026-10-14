@@ -17,6 +17,8 @@ ls "$tmp"/.claude/CLAUDE.md.bak.* >/dev/null 2>&1 || falha "backup do CLAUDE.md 
 for a in "$raiz"/global/agents/*.md; do
   [ "$(readlink "$tmp/.claude/agents/$(basename "$a")")" = "$a" ] || falha "agente não linkado: $(basename "$a")"
 done
+[ "$(readlink "$tmp/.local/bin/codex-agente")" = "$raiz/bin/codex-agente" ] || falha "bin codex-agente não linkado em ~/.local/bin"
+[ "$(readlink "$tmp/.claude/skills/delegar-codex")" = "$raiz/global/skills/delegar-codex" ] || falha "skill delegar-codex não linkada"
 [ -f "$tmp/.claude/CLAUDE.maquina.md" ] || falha "CLAUDE.maquina.md não criado"
 grep -q '@~/.claude/CLAUDE.maquina.md' "$raiz/global/CLAUDE.md" || falha "global/CLAUDE.md não importa o CLAUDE.maquina.md"
 

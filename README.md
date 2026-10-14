@@ -29,6 +29,7 @@ new-project.sh        # cria memória + CLAUDE.md de um projeto novo
 bin/brain             # comando do dia a dia (sobe, desce, status, setup) -> ~/.local/bin/brain
 bin/project           # CLI create/start/exit de projetos em ~/workfolder -> ~/.local/bin/project
 bin/spec-check        # valida as tarefas de uma spec e calcula as ondas -> ~/.local/bin/spec-check
+bin/codex-agente      # delega uma tarefa a um agente do Codex (outra assinatura) -> ~/.local/bin/codex-agente
 setup.sh              # configura um PC novo do zero (chama os scripts abaixo)
 up.sh / down.sh       # sobe e desce o ambiente (dev-brain + Habblaud)
 lib/                  # código usado pelos scripts e bins (spec-check, habblaud.sh)
@@ -183,6 +184,22 @@ Depois do seu "ok" na spec, o time roda sozinho até o resumo. Acompanhe pelo `/
 Subagentes ficam em `global/agents/`: `dev-rapido`, `dev`, `gate`, `revisor`, `qa-browser`. O commit é um script montado pelo `time.js` (sem LLM escrevendo a mensagem) e falha se aparecer atribuição de IA.
 
 O `project start` mostra o `estado-atual.md` do projeto ao abrir.
+
+## Delegar para o Codex
+
+Para distribuir carga entre as assinaturas, qualquer agente do Claude Code pode mandar uma tarefa para um agente do Codex
+pelo comando `codex-agente` (`bin/codex-agente`, em `~/.local/bin`). A skill `delegar-codex` diz quando delegar e como chamar.
+
+```bash
+codex-agente --repo ~/code/meu-app "liste os pontos de entrada e explique o fluxo de login"            # só leitura (padrão)
+codex-agente --repo ~/code/meu-app --escrever --timeout 1800 "crie testes para lib/pagamento.ts"       # pode editar arquivos
+codex-agente --codex-home ~/.codex-2 --repo ~/code/meu-app "revise o diff atual"                        # outra conta
+```
+
+- Só leitura por padrão. `--escrever` libera edição, só em repo git (para listar os arquivos alterados e você reverter).
+- `--codex-home` escolhe a conta do Codex (define `CODEX_HOME` só para aquela chamada); sem ele, vale o ambiente atual.
+- A saída é uma linha de JSON (`status`, `resumo`, `arquivos`, `exit_code`, `duracao_s`, `sandbox`). Confira `arquivos` com `git diff` antes de aceitar.
+- O Codex nunca commita nem dá push: quem faz isso é você.
 
 ## Visibilidade: Habblaud
 
