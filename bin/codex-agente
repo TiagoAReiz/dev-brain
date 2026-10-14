@@ -1,0 +1,58 @@
+#!/usr/bin/env node
+'use strict';
+// codex-agente: roda o `codex exec` não interativo num repo e imprime uma linha de JSON.
+// Uso: codex-agente [opções] [--] [prompt]   (sem prompt ou "-": lê do stdin)
+// Lógica em lib/codex-agente.cjs; aqui só I/O.
+const fs = require('node:fs');
+const { parseArgs, executar } = require('../lib/codex-agente.cjs');
+
+const AJUDA = `codex-agente [opções] [--] [prompt]
+
+  prompt                texto do pedido; se omitido ou "-", lê do stdin
+  --repo <dir>          pasta de trabalho do Codex (padrão: pasta atual)
+  --escrever            permite escrever no repo (exige git); padrão: somente leitura
+  --timeout <segundos>  inteiro 1..7200 (padrão 900)
+  --modelo <nome>       modelo do Codex (repassa -m)
+  --codex-home <dir>    conta do Codex: define CODEX_HOME só para o filho
+  --ajuda               mostra esta ajuda
+
+Saída: uma linha de JSON no stdout. Diagnóstico vai para o stderr.
+Códigos: 0 ok · 1 erro do Codex · 2 uso inválido · 3 Codex indisponível · 4 timeout
+`;
+
+function uso(erro) {
+  process.stderr.write(`codex-agente: ${erro}\n`);
+  const resultado = { status: 'uso', resumo: erro, arquivos: [], exit_code: 2, duracao_s: 0, sandbox: 'read-only' };
+  process.stdout.write(`${JSON.stringify(resultado)}\n`);
+  process.exitCode = 2;
+}
+
+async function main() {
+  const r = parseArgs(process.argv.slice(2));
+  if (!r.ok) {
+    if (r.ajuda) {
+      process.stdout.write(AJUDA);
+      process.exitCode = 0;
+      return;
+    }
+    uso(r.erro);
+    return;
+  }
+  const opcoes = r.opcoes;
+  if (opcoes.prompt === null) {
+    try {
+      opcoes.prompt = fs.readFileSync(0, 'utf8');
+    } catch {
+      opcoes.prompt = '';
+    }
+  }
+  if (!opcoes.prompt.trim()) {
+    uso('prompt vazio (informe um texto ou pelo stdin)');
+    return;
+  }
+  const { codigo, resultado } = await executar(opcoes);
+  process.stdout.write(`${JSON.stringify(resultado)}\n`);
+  process.exitCode = codigo;
+}
+
+main();
