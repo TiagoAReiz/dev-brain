@@ -30,6 +30,13 @@ export class NavegadorPastas {
   private readonly usar: HTMLButtonElement;
   private atual: BrowseResult | null = null;
   private seq = 0;
+  // Esc no document (captura): vale mesmo com o foco fora do painel (ex.: BODY após re-render).
+  private readonly aoEsc = (ev: KeyboardEvent): void => {
+    if (ev.key !== 'Escape') return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.fechar();
+  };
 
   constructor(private readonly opts: { onEscolher: (caminho: string) => void }) {
     this.migalhasEl = h('nav', { class: 'dbf-migalhas', attrs: { 'aria-label': tr('Caminho') } });
@@ -55,13 +62,6 @@ export class NavegadorPastas {
       this.lista,
       h('div', { class: 'dbf-rodape' }, this.caminhoEl, h('div', { class: 'dbf-acoes' }, cancelar, this.usar)),
     );
-    // Esc fecha só o painel, sem fechar o popover do Novo agente.
-    this.el.addEventListener('keydown', (ev) => {
-      if (ev.key !== 'Escape') return;
-      ev.stopPropagation();
-      ev.preventDefault();
-      this.fechar();
-    });
   }
 
   get aberto(): boolean {
@@ -73,11 +73,14 @@ export class NavegadorPastas {
     this.atual = null;
     this.esvaziar();
     setHidden(this.el, false);
+    // mesma referência e mesmo flag de captura: não duplica o listener se já estiver aberto
+    document.addEventListener('keydown', this.aoEsc, true);
     this.carregar(inicial?.trim() || undefined, true);
   }
 
   fechar(): void {
     this.seq++; // descarta resposta em voo
+    document.removeEventListener('keydown', this.aoEsc, true);
     setHidden(this.el, true);
   }
 
