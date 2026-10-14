@@ -3,6 +3,32 @@
 Fonte única do meu workflow com IA: memória por projeto, skills, `CLAUDE.md` global e setup de máquina nova.
 É só markdown, shell e git: sem RAG, banco de dados ou servidor.
 
+## Começo rápido
+
+Precisa de **Linux, macOS ou WSL** (no Windows, use o WSL), `git` e o [Claude Code](https://claude.com/claude-code) instalado.
+
+```bash
+# 1. baixe (o repo é público, não precisa de login)
+git clone https://github.com/TiagoAReiz/dev-brain.git ~/dev-brain
+
+# 2. instale os links (CLAUDE.md global, skills, subagentes e os comandos brain/project)
+~/dev-brain/bootstrap.sh
+
+# 3. exporte a variável que o Claude usa para achar a memória (a linha que o passo 2 mostrar; vale colar no ~/.bashrc ou ~/.zshrc)
+export DEV_BRAIN_HOME="$HOME/dev-brain"
+
+# 4. crie a memória do seu primeiro projeto e abra o Claude nele
+~/dev-brain/new-project.sh meu-app ~/code/meu-app
+cd ~/code/meu-app && claude
+```
+
+No Claude, peça para **"usar a skill kickoff"** (preenche a memória do projeto conversando com você) e, depois,
+qualquer mudança de código segue a skill **`implementar`**: o Claude planeja com você, grava a spec e um time de subagentes implementa.
+
+- **Máquina nova inteira** (instala ferramentas, serviço do Habblaud etc.): rode `~/dev-brain/setup.sh` no lugar do passo 2. Veja "PC novo" mais abaixo.
+- **Suas memórias ficam só com você.** O passo 4 cria a pasta `memory/` local. Para versioná-la, rode `git -C ~/dev-brain/memory init` e aponte para um repo **seu** (de preferência privado). Detalhes em "Memória privada".
+- Para atualizar o dev-brain depois: `git -C ~/dev-brain pull`.
+
 Roda em **Linux, macOS e WSL**. No Windows, use dentro do WSL (o Git Bash não cria symlinks confiáveis).
 
 ## Estrutura
@@ -46,12 +72,11 @@ O log da última subida fica em `~/.habblaud/brain.log`.
 
 ## PC novo
 
-O repo é privado, então o primeiro passo é o login no GitHub:
-
 ```bash
-sudo apt install -y gh && gh auth login
-gh repo clone TiagoAReiz/dev-brain ~/dev-brain && ~/dev-brain/setup.sh
+git clone https://github.com/TiagoAReiz/dev-brain.git ~/dev-brain && ~/dev-brain/setup.sh
 ```
+
+Se você é o dono e tem acesso à memória privada, clone-a depois: `git clone git@github.com:TiagoAReiz/dev-brain-memory.git ~/dev-brain/memory`.
 
 O `setup.sh` é idempotente e faz, em ordem: ferramentas (`install-tools.sh`), login no GitHub, links (`bootstrap.sh`:
 `CLAUDE.md`, skills, subagentes, `brain`, `project`, `spec-check` e o ícone **Dev Brain** no menu) e o Habblaud
