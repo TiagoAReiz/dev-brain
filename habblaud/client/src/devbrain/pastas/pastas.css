@@ -1,0 +1,190 @@
+/* Navegador de pastas inline do Novo agente. */
+.dbp-painel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  margin: 8px 0 4px;
+  padding: 10px;
+  border: 1px solid var(--ui-line);
+  border-radius: 8px;
+  background: var(--ui-bg-soft);
+  color: var(--ui-text);
+  font-size: 13px;
+}
+
+.dbp-painel[hidden],
+.dbp-painel [hidden] {
+  display: none;
+}
+
+.dbp-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dbp-atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dbp-ocultas {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--ui-muted);
+  cursor: pointer;
+}
+
+.dbp-migalhas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dbp-migalha,
+.dbp-atalho,
+.dbp-btn,
+.dbp-linha {
+  box-sizing: border-box;
+  min-height: 44px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ui-text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.dbp-migalha {
+  max-width: 100%;
+  padding: 4px 8px;
+  color: var(--ui-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dbp-migalha:not(:last-child)::after {
+  content: '/';
+  margin-left: 8px;
+  color: var(--ui-faint);
+}
+
+.dbp-migalha[aria-current] {
+  color: var(--ui-text);
+  font-weight: 600;
+}
+
+.dbp-atalho,
+.dbp-btn {
+  padding: 6px 12px;
+  border-color: var(--ui-line);
+  background: var(--ui-bg-soft);
+}
+
+.dbp-btn--primario {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent-soft, color-mix(in srgb, var(--ui-accent) 14%, transparent));
+  font-weight: 600;
+}
+
+.dbp-migalha:hover,
+.dbp-atalho:hover,
+.dbp-btn:hover:not(:disabled),
+.dbp-linha:hover {
+  border-color: var(--ui-line-strong);
+}
+
+.dbp-migalha:focus-visible,
+.dbp-atalho:focus-visible,
+.dbp-btn:focus-visible,
+.dbp-linha:focus-visible,
+.dbp-ocultas:focus-within {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+.dbp-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dbp-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+}
+
+.dbp-lista:empty {
+  display: none;
+}
+
+.dbp-lista.is-carregando {
+  opacity: 0.55;
+}
+
+.dbp-linha {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dbp-subir {
+  color: var(--ui-muted);
+  border-color: var(--ui-line);
+}
+
+.dbp-aviso {
+  margin: 0;
+  color: var(--ui-muted);
+}
+
+.dbp-erro {
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--ui-danger, var(--ui-line-strong));
+  border-radius: 6px;
+  color: var(--ui-danger, var(--ui-text));
+  overflow-wrap: anywhere;
+}
+
+.dbp-rodape {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dbp-caminho {
+  min-width: 0;
+  color: var(--ui-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.dbp-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
