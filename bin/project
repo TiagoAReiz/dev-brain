@@ -60,13 +60,18 @@ _kickoff_prompt() {
 }
 
 # Commita e envia a memória recém-criada, para ela existir em qualquer máquina.
+# A memória é um repo privado à parte, clonado em $DEV_BRAIN_HOME/memory (ver README, "Memória privada").
+_memory_repo() { [[ -d "$DEV_BRAIN_HOME/memory/.git" ]]; }
+
 _commit_new_memory() {
-    local mem="$1"
-    git -C "$DEV_BRAIN_HOME" commit -q -m "memory($mem): cria projeto" -- "memory/$mem" memory/README.md \
-        || { warn "Não consegui commitar a memória no dev-brain."; return; }
-    git -C "$DEV_BRAIN_HOME" push -q 2>/dev/null \
-        && ok "Memória '$mem' commitada e enviada no dev-brain." \
-        || warn "Memória commitada, mas o push do dev-brain falhou."
+    local mem="$1" M="$DEV_BRAIN_HOME/memory"
+    _memory_repo || { warn "memory/ não é um repo git; memória '$mem' criada só localmente."; return; }
+    git -C "$M" add -- "$mem" README.md \
+        && git -C "$M" commit -q -m "memory($mem): cria projeto" -- "$mem" README.md \
+        || { warn "Não consegui commitar a memória."; return; }
+    git -C "$M" push -q 2>/dev/null \
+        && ok "Memória '$mem' commitada e enviada." \
+        || warn "Memória commitada, mas o push falhou."
 }
 
 # Atualiza o dev-brain (memória, skills) antes de começar a trabalhar.
@@ -291,26 +296,29 @@ NODE
 # Oferece commitar e enviar a memória atualizada durante a sessão.
 _save_dev_brain() {
     echo ""
-    echo -e "${BOLD}--- dev-brain ---${NC}"
-    local changes
-    changes=$(git -C "$DEV_BRAIN_HOME" status --porcelain -- memory)
-    if [[ -n "$changes" ]]; then
-        git -C "$DEV_BRAIN_HOME" status --short -- memory | sed 's/^/  /'
+    echo -e "${BOLD}--- memória ---${NC}"
+    local M="$DEV_BRAIN_HOME/memory"
+    if ! _memory_repo; then
+        echo "  memory/ não é um repo git (sem memória privada configurada)."
+        return
+    fi
+    if [[ -n "$(git -C "$M" status --porcelain)" ]]; then
+        git -C "$M" status --short | sed 's/^/  /'
         if ask "Commitar e enviar essas mudanças de memória?"; then
-            git -C "$DEV_BRAIN_HOME" add -- memory \
-                && git -C "$DEV_BRAIN_HOME" commit -q -m "memory: sessão de $1" \
+            git -C "$M" add -A \
+                && git -C "$M" commit -q -m "memory: sessão de $1" \
                 && ok "  Memória commitada."
         fi
     else
         echo "  Memória sem mudanças."
     fi
-    if [[ -n "$(git -C "$DEV_BRAIN_HOME" log '@{u}..' --oneline 2>/dev/null)" ]]; then
-        git -C "$DEV_BRAIN_HOME" push -q 2>/dev/null \
-            && ok "  dev-brain enviado." \
-            || warn "  Push do dev-brain falhou; rode 'git -C $DEV_BRAIN_HOME push' na mão."
+    if [[ -n "$(git -C "$M" log '@{u}..' --oneline 2>/dev/null)" ]]; then
+        git -C "$M" push -q 2>/dev/null \
+            && ok "  Memória enviada." \
+            || warn "  Push da memória falhou; rode 'git -C $M push' na mão."
     fi
-    [[ -z "$(git -C "$DEV_BRAIN_HOME" status --porcelain -- . ':!memory')" ]] \
-        || warn "  Há outras mudanças no dev-brain fora de memory/ (não mexi nelas)."
+    [[ -z "$(git -C "$DEV_BRAIN_HOME" status --porcelain)" ]] \
+        || warn "  Há mudanças no dev-brain (código/skills) não commitadas (não mexi nelas)."
 }
 
 _project_exit() {

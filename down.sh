@@ -23,15 +23,23 @@ if hb_no_ar; then echo "  ainda respondendo em $HB_URL (rodando fora do serviço
 
 etapa "dev-brain"
 db() { git -C "$DEV_BRAIN_HOME" "$@"; }
-if [ -n "$(db status --porcelain -- memory)" ]; then
-  db status --short -- memory | sed 's/^/  /'
-  if ask "Commitar e enviar essas mudanças de memória?"; then
-    db add -- memory && db commit -q -m "memory: sessão de $(date +%Y-%m-%d)" && echo "  memória commitada"
+mem() { git -C "$DEV_BRAIN_HOME/memory" "$@"; }   # memória = repo privado à parte
+if [ -d "$DEV_BRAIN_HOME/memory/.git" ]; then
+  if [ -n "$(mem status --porcelain)" ]; then
+    mem status --short | sed 's/^/  /'
+    if ask "Commitar e enviar essas mudanças de memória?"; then
+      mem add -A && mem commit -q -m "memory: sessão de $(date +%Y-%m-%d)" && echo "  memória commitada"
+    fi
   fi
+  if [ -n "$(mem log '@{u}..' --oneline 2>/dev/null)" ] && ask "Dar push na memória?"; then
+    mem push && echo "  memória enviada"
+  fi
+else
+  echo "  memory/ não é um repo git (sem memória privada configurada)."
 fi
-if [ -n "$(db status --porcelain -- . ':!memory')" ]; then
-  echo "  há mudanças fora de memory/ (não mexi nelas):"
-  db status --short -- . ':!memory' | sed 's/^/    /'
+if [ -n "$(db status --porcelain)" ]; then
+  echo "  há mudanças no dev-brain (não mexi nelas):"
+  db status --short | sed 's/^/    /'
 fi
 pendentes="$(db log '@{u}..' --oneline 2>/dev/null)"
 if [ -n "$pendentes" ]; then

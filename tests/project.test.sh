@@ -39,11 +39,12 @@ function seed(name) {
 function clone(name) {seed(name);const dir=path.join(work,name);git(temp,'clone','-q',`https://github.com/Tiago/${name}.git`,dir);return dir;}
 try {
  for (const file of ['bin/project','lib/project-json.cjs','new-project.sh']) {fs.mkdirSync(path.dirname(path.join(root,file)),{recursive:true});fs.copyFileSync(path.join(source,file),path.join(root,file));fs.chmodSync(path.join(root,file),0o755);}
- fs.cpSync(path.join(source,'templates'),path.join(root,'templates'),{recursive:true});write(root,'memory/README.md','# Memory\n');
+ fs.cpSync(path.join(source,'templates'),path.join(root,'templates'),{recursive:true});write(root,'memory/README.md','# Memory\n');write(root,'.gitignore','/memory/\n');
  call('git',['config','--global','user.email','fixture@example.invalid']);call('git',['config','--global','user.name','Fixture']);
  call('git',['config','--global',`url.file://${remotes}/.insteadOf`,'https://github.com/']);
  git(root,'init','-q','-b','main');git(root,'add','.');git(root,'commit','-qm','fixture');
  const brainRemote=path.join(temp,'brain.git');git(temp,'init','--bare','-q',brainRemote);git(root,'remote','add','origin',brainRemote);git(root,'push','-qu','origin','main');
+ const memRoot=path.join(root,'memory'),memRemote=path.join(temp,'memory.git');git(temp,'init','--bare','-q',memRemote);git(memRoot,'init','-q','-b','main');git(memRoot,'add','.');git(memRoot,'commit','-qm','memory fixture');git(memRoot,'remote','add','origin',memRemote);git(memRoot,'push','-qu','origin','main');
  const gh=`#!/usr/bin/env node
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');
 const a=process.argv.slice(2),base=process.env.TEST_REMOTES;

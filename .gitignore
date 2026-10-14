@@ -28,6 +28,9 @@ desktop.ini
 .idea/
 .vscode/
 
+# Memória: repo privado à parte, clonado aqui (ver README, "Memória privada")
+/memory/
+
 # Backups gerados pelo bootstrap
 *.bak.*
 habblaud/.vitest/

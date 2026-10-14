@@ -41,6 +41,6 @@ build/test/lint e convenções (se já souber). Commit no projeto só desse arqu
 ## 4. Fechar
 
 1. Commit no dev-brain:
-   `git -C "$DEV_BRAIN_HOME" add memory && git -C "$DEV_BRAIN_HOME" commit -m "memory(<projeto>): kickoff" && git -C "$DEV_BRAIN_HOME" push`
+   `git -C "$DEV_BRAIN_HOME/memory" add -A && git -C "$DEV_BRAIN_HOME/memory" commit -m "memory(<projeto>): kickoff" && git -C "$DEV_BRAIN_HOME/memory" push` (a memória é um repo privado à parte; se `memory/.git` não existir, só grave os arquivos e avise)
 2. Resuma o que ficou registrado e diga que as features seguem pela skill `implementar`,
    começando pelo primeiro marco do roadmap se o usuário quiser.

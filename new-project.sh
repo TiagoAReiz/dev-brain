@@ -33,7 +33,7 @@ tpl="$DEV_BRAIN_HOME/templates"
 # Checa tudo antes de criar qualquer coisa.
 [ ! -e "$mem_dir" ]   || die "já existe: $mem_dir (nada foi alterado)"
 [ ! -e "$claude_md" ] || die "já existe: $claude_md (nada foi alterado)"
-[ -f "$index" ]       || die "índice não encontrado: $index"
+[ -f "$index" ] || { mkdir -p "$(dirname "$index")"; printf '# Memory\n\n' > "$index"; }   # sem a memória privada, começa um índice local
 
 today="$(date +%Y-%m-%d)"
 render() { sed -e "s/{{NOME}}/$name/g" -e "s/{{DATA}}/$today/g" "$1" > "$2"; }
@@ -56,11 +56,18 @@ created+=("$claude_md")
 printf -- '- [%s](%s/README.md): _descreva em 1 linha_\n' "$name" "$name" >> "$index"
 trap - ERR
 
-git -C "$DEV_BRAIN_HOME" add -- "memory/$name" "memory/README.md"
+if [ -d "$DEV_BRAIN_HOME/memory/.git" ]; then
+  git -C "$DEV_BRAIN_HOME/memory" add -- "$name" README.md
+  staged_msg=1
+fi
 
 printf 'Projeto "%s" criado.\n' "$name"
 printf '  memória:   %s\n' "$mem_dir"
 printf '  CLAUDE.md: %s (não adicionado ao git do projeto)\n\n' "$claude_md"
-printf 'Staged no dev-brain (sem commit):\n'
-git -C "$DEV_BRAIN_HOME" status --short
+if [ -n "${staged_msg:-}" ]; then
+  printf 'Staged no repo de memória (sem commit):\n'
+  git -C "$DEV_BRAIN_HOME/memory" status --short
+else
+  printf 'Aviso: memory/ não é um repo git; a memória ficou só local (veja "Memória privada" no README).\n'
+fi
 printf '\nPróximo: preencha memory/%s/README.md e a linha do índice, depois faça o commit.\n' "$name"

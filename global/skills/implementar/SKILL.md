@@ -119,6 +119,6 @@ falta, com evidência (tarefa, motivo, pendências, saída do gate). Não tente 
 
    - `arquitetura.md`, `decisoes.md`, `estado-atual.md`, `roadmap.md`, melhorias e correções de memória como antes.
 2. **Projeto:** os commits já foram feitos pelo time, um por tarefa. Sem push (o `project exit` ou o usuário fazem).
-3. **dev-brain:** `git -C "$DEV_BRAIN_HOME" add memory/<projeto> && git -C "$DEV_BRAIN_HOME" commit -m "memory(<projeto>): <feature>" && git -C "$DEV_BRAIN_HOME" push`
+3. **dev-brain:** `git -C "$DEV_BRAIN_HOME/memory" add <projeto> && git -C "$DEV_BRAIN_HOME/memory" commit -m "memory(<projeto>): <feature>" && git -C "$DEV_BRAIN_HOME/memory" push` (a memória é um repo privado à parte; se `memory/.git` não existir, só grave os arquivos e avise)
 4. **Resumo ao usuário:** status por tarefa, a tabela de métricas, resultado da QA, o que ficou bloqueado e por quê,
    e o diff da memória (`git -C "$DEV_BRAIN_HOME" show --stat HEAD` e os trechos relevantes).

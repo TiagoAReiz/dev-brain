@@ -22,7 +22,7 @@ global/skills/<nome>/ # uma pasta por skill -> ~/.claude/skills/<nome>
 global/agents/<nome>.md # subagentes do time -> ~/.claude/agents/<nome>.md
 global/workflows/     # scripts de Workflow (time.js: o time de agentes)
 templates/            # modelos usados pelo new-project.sh
-memory/README.md      # índice de projetos
+memory/README.md      # índice de projetos (repo privado à parte, ver "Memória privada")
 memory/<projeto>/     # README, arquitetura, estado-atual, decisoes, roadmap, specs/
 docs/                 # specs e planos do próprio dev-brain
 exemplos/sandbox/     # repo de teste do time de agentes
@@ -230,11 +230,20 @@ Desinstalar: `npm run mod:uninstall` e pare o serviço ou o container.
 Atenção: o plugin de mensagens deixa qualquer processo local mandar prompts às sessões abertas; com o alias de bypass,
 isso vira execução sem aprovação. Para ficar sem ele: `npm run mod:install -- --sem-mensagens`.
 
+## Memória privada
+
+Este repo é público e **não contém memórias**: `memory/` está no `.gitignore` e é um repo git separado (privado).
+
+- **Com acesso à memória:** `git clone git@github.com:<voce>/dev-brain-memory.git ~/dev-brain/memory`.
+- **Sem acesso (quem só copiou o dev-brain):** nada a fazer. Sem `memory/.git`, os scripts criam a pasta local e avisam que ela não é versionada;
+  o `new-project.sh` cria `memory/` com um índice novo; se quiser versionar, rode `git -C memory init` num repo seu.
+- Os comandos de commit/push da memória (`bin/project`, `down.sh`, skills `implementar` e `kickoff`) sempre rodam em `memory/`, nunca neste repo.
+
 ## Atualizando a memória
 
 - O agente propõe atualizar `estado-atual.md` e `decisoes.md` no fim das sessões relevantes e mostra o diff antes de gravar.
-- Revise e commite no dev-brain: `git -C ~/dev-brain add -A && git -C ~/dev-brain commit -m "memory(<projeto>): ..." && git -C ~/dev-brain push`
-- Em outra máquina: `git -C ~/dev-brain pull`. Os symlinks já apontam para o repo, então não é preciso fazer mais nada.
+- Revise e commite na memória: `git -C ~/dev-brain/memory add -A && git -C ~/dev-brain/memory commit -m "memory(<projeto>): ..." && git -C ~/dev-brain/memory push`
+- Em outra máquina: `git -C ~/dev-brain pull` (código) e `git -C ~/dev-brain/memory pull` (memória). Os symlinks já apontam para o repo, então não é preciso fazer mais nada.
 - Se a memória contradisser o código, o código vence: corrija a memória.
 
 ## O que não é automatizado
