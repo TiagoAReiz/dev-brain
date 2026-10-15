@@ -39,6 +39,7 @@ import { TopBar } from './topbar';
 import { UpdateBanner } from './update';
 import { InterruptorPresencial } from '../devbrain/presencial/interruptor';
 import { CicloDia } from '../devbrain/dia';
+import { instalarAtalhoModelo } from '../devbrain/modelo/atalho';
 import { grupoCabecalho } from '../devbrain/cabecalho/botao';
 import { TabelaPresencial } from '../devbrain/presencial/tabela';
 import { FreeArea } from './viewport';
@@ -200,6 +201,7 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi)
     },
   };
   ctx.terminals = router;
+  instalarAtalhoModelo(ctx);
   // Entregas: o que os agentes terminaram (primeiro botão do grupo: é o que mais se usa pelo celular).
   const deliveries = new Deliveries(ctx, terminal);
   topbar.panelGroup.prepend(deliveries.button);

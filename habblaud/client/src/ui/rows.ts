@@ -2,6 +2,7 @@
 import type { AccountInfo, AgentInfo } from '../../../shared/types';
 import { createAvatar, updateAvatar, type AvatarSize } from './avatar';
 import { h, setAttr, setHidden, setStyleVar, setText, setTitle, setVariant } from './dom';
+import { chipModelo } from '../devbrain/modelo/atalho';
 import { formatDuration, prettyModel } from './format';
 import { activityFallback, shellLine, shellWaitIn, statusLabel } from './model';
 import {
@@ -43,7 +44,8 @@ export function createAgentRow(agent: AgentInfo, onPick: (id: string) => void, s
   const activity = createActivityLine();
   const task = h('span', { class: 'ui-agent__task', hidden: true });
   const since = h('span', { class: 'ui-agent__since', hidden: true });
-  const model = h('span', { class: 'dbp-agente__modelo', hidden: true });
+  const model = chipModelo(() => row.dataset.id ?? null, 'dbp-agente__modelo');
+  model.hidden = true;
   const row = h(
     'button',
     { class: 'ui-agent', type: 'button' },

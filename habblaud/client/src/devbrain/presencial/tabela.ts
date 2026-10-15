@@ -1,6 +1,7 @@
 // Painel do modo presencial: um cartão por projeto, com resumo, agentes e subagentes. Reconcilia por roomId e agentId.
 import type { UiComponent, UiContext } from '../../ui/context';
 import { h, setAttr, setHidden, setText, setTitle } from '../../ui/dom';
+import { chipModelo } from '../modelo/atalho';
 import { focusPermission } from '../../ui/permission';
 import { type AgenteCartao, type CartaoProjeto, type FiltroPresencial, cartoesPresencial, resumoCartao, resumoPresencial } from './cartoes';
 import './presencial.css';
@@ -234,7 +235,7 @@ export class TabelaPresencial implements UiComponent {
     const nome = h('span', { class: 'dbp-agente__nome' });
     const atividade = h('span', { class: 'dbp-agente__atividade' });
     const desde = h('span', { class: 'dbp-agente__desde' });
-    const modelo = h('span', { class: 'dbp-agente__modelo' });
+    const modelo = chipModelo(() => id, 'dbp-agente__modelo');
     const responder = h('button', {
       class: 'dbp-responder',
       type: 'button',
