@@ -60,7 +60,7 @@ import {
   updateStatusDot,
 } from './widgets';
 import { tr } from '../../../shared/i18n';
-import { chipModelo } from '../devbrain/modelo/atalho';
+import { atualizarChip, chipModelo } from '../devbrain/modelo/atalho';
 import { botaoAbrirNoVscode } from '../devbrain/vscode/ponte';
 
 /** Itens da linha do tempo mostrados de início; "Mostrar mais" acrescenta outro tanto. */
@@ -189,7 +189,7 @@ function updateShellItem(li: HTMLElement, j: ShellJob, now: number): void {
 class AgentView {
   readonly el: HTMLElement;
   private id = '';
-  private modelChip = chipModelo(() => this.id || null, 'dbp-agente__modelo');
+  private modelChip = chipModelo(() => this.id || null);
   private last: AgentInfo | null = null;
   private history: Activity[] = [];
   private historyReq = 0;
@@ -745,9 +745,8 @@ class AgentView {
     setText(this.linesPlus, `+${formatInt(s.linesAdded ?? 0)}`);
     setText(this.linesMinus, `−${formatInt(s.linesRemoved ?? 0)}`);
     st.set('subs', a.kind === 'main' ? formatInt(s.subagents) : null);
-    st.show('model', true);
-    setText(this.modelChip, prettyModel(a.model));
-    setTitle(this.modelChip, a.model ?? '');
+    st.show('model', !!a.model);
+    atualizarChip(this.modelChip, a.model, prettyModel(a.model), a.kind === 'main');
     st.set('branch', a.gitBranch ?? null);
     // Codex: a política de aprovação (quando o servidor a manda) no lugar do modo de permissão do Claude Code.
     st.label('perm', codex ? tr('Aprovações') : tr('Permissões'));

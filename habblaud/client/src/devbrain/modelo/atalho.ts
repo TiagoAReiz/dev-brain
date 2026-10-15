@@ -1,9 +1,11 @@
-// Atalho para trocar modelo e effort de um agente: manda `/model` ou `/effort` ao terminal interativo dele e abre
-// esse terminal, onde o Claude Code mostra o seletor. Só vale para agentes abertos no terminal do Habblaud.
+// Atalho para trocar modelo e effort de um agente. O chip do modelo abre um menu com os modelos e os níveis de effort:
+// agente aberto no terminal do Habblaud recebe `/model x` / `/effort y` digitado no terminal dele; os demais (com o
+// plugin habblaud-mensagens) recebem o mesmo comando pelo canal de mensagens.
 import type { PtyInfo } from '../../../../shared/types';
 import type { UiContext } from '../../ui/context';
 import { h } from '../../ui/dom';
 import { postPty } from '../../ui/ptyapi';
+import './atalho.css';
 
 export type Seletor = 'model' | 'effort';
 
@@ -13,6 +15,8 @@ export interface PedidoModelo {
   agentId: string;
   ancora: HTMLElement;
 }
+
+export type TomAviso = 'info' | 'ok' | 'erro';
 
 export interface OpcaoMenu {
   rotulo: string;
@@ -45,8 +49,8 @@ export function ptyVivo(ptys: readonly PtyInfo[] | undefined, agentId: string): 
 }
 
 /** Chip clicável: pede o menu do agente (quem abre é instalarAtalhoModelo, ouvindo o evento). */
-export function chipModelo(agentId: () => string | null, classe: string): HTMLButtonElement {
-  const b = h('button', { class: `${classe} dbm-chip`, type: 'button' });
+export function chipModelo(agentId: () => string | null): HTMLButtonElement {
+  const b = h('button', { class: 'dbm-chip', type: 'button' });
   b.addEventListener('click', (ev) => {
     ev.stopPropagation();
     const id = agentId();
@@ -55,49 +59,85 @@ export function chipModelo(agentId: () => string | null, classe: string): HTMLBu
   return b;
 }
 
-/** Espera o plugin de mensagens entregar (até ~8 s) e devolve o texto para mostrar. */
-async function esperarMensagem(id: string | undefined): Promise<string> {
-  if (!id) return 'Enviado.';
+/** Texto e dica do chip; subagente não troca de modelo (herda o do pai). */
+export function atualizarChip(chip: HTMLButtonElement, modelo: string | undefined, bonito: string, trocavel: boolean): void {
+  const texto = modelo ? bonito : '';
+  if (chip.textContent !== texto) chip.textContent = texto;
+  chip.hidden = !modelo;
+  chip.disabled = !trocavel;
+  const dica = trocavel ? `${modelo ?? ''} · clique para trocar modelo ou effort` : (modelo ?? '');
+  if (chip.title !== dica) chip.title = dica;
+  chip.setAttribute('aria-haspopup', trocavel ? 'menu' : 'false');
+}
+
+/** Espera o plugin de mensagens entregar (até ~8 s). */
+async function esperarMensagem(id: string | undefined): Promise<{ tom: TomAviso; texto: string }> {
+  if (!id) return { tom: 'ok', texto: 'Enviado.' };
   for (let i = 0; i < 16; i++) {
     await new Promise((r) => setTimeout(r, 500));
     const res = await fetch(`/api/messages/${encodeURIComponent(id)}`).catch(() => null);
     const m = (await res?.json().catch(() => null)) as { status?: string; error?: string } | null;
-    if (m?.status === 'failed') return `Falhou: ${m.error ?? 'a sessão recusou'}`;
-    if (m?.status === 'sent' || m?.status === 'delivered') return 'Trocado. O chip atualiza no próximo turno do agente.';
+    if (m?.status === 'failed') return { tom: 'erro', texto: m.error ?? 'a sessão recusou o comando' };
+    if (m?.status === 'sent' || m?.status === 'delivered') return { tom: 'ok', texto: 'Enviado. O chip atualiza no próximo turno do agente.' };
   }
-  return 'Enviado (a sessão ainda não confirmou).';
+  return { tom: 'info', texto: 'Enviado; a sessão ainda não confirmou.' };
 }
 
 export function instalarAtalhoModelo(ctx: UiContext): void {
   let menu: HTMLElement | null = null;
-  const fechar = () => {
+  let dono: HTMLElement | null = null;
+  const fechar = (devolverFoco = false) => {
     menu?.remove();
     menu = null;
+    dono?.setAttribute('aria-expanded', 'false');
+    if (devolverFoco) dono?.focus();
+    dono = null;
   };
-  document.addEventListener('click', fechar);
-  document.addEventListener('keydown', (ev) => ev.key === 'Escape' && fechar());
+  document.addEventListener('click', (ev) => {
+    if (menu && !menu.contains(ev.target as Node)) fechar();
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (!menu) return;
+    if (ev.key === 'Escape') return fechar(true);
+    if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+    const itens = [...menu.querySelectorAll<HTMLButtonElement>('.dbm-op, .dbm-seg__op, .dbm-mais')];
+    if (!itens.length) return;
+    const i = itens.indexOf(document.activeElement as HTMLButtonElement);
+    const prox = ev.key === 'ArrowDown' ? (i + 1) % itens.length : (i - 1 + itens.length) % itens.length;
+    itens[prox]?.focus();
+    ev.preventDefault();
+  });
 
   document.addEventListener(EVENTO_MODELO, (ev) => {
     const { agentId, ancora } = (ev as CustomEvent<PedidoModelo>).detail;
+    const reabrir = dono !== ancora;
     fechar();
+    if (!reabrir) return; // segundo clique no mesmo chip fecha
+    dono = ancora;
+    ancora.setAttribute('aria-expanded', 'true');
+    const agente = ctx.store.snapshot?.agents.find((a) => a.id === agentId);
     const pty = ptyVivo(ctx.store.snapshot?.ptys, agentId);
-    const aviso = h('div', { class: 'dbm-aviso', hidden: true });
-    const atual = ctx.store.snapshot?.agents.find((a) => a.id === agentId)?.model;
-    const dizer = (t: string) => {
-      aviso.textContent = t;
+    const pelaMensagem = !pty && !!agente?.canMessage;
+    const atual = agente?.model;
+
+    const aviso = h('div', { class: 'dbm-aviso', hidden: true, attrs: { 'aria-live': 'polite' } });
+    const dizer = (tom: TomAviso, texto: string) => {
+      aviso.className = `dbm-aviso dbm-aviso--${tom}`;
+      aviso.textContent = texto;
       aviso.hidden = false;
     };
-    const pelaMensagem = !pty && !!ctx.store.snapshot?.agents.find((a) => a.id === agentId)?.canMessage;
+
     const enviar = async (qual: Seletor, valor = '') => {
       if (!pty) {
-        if (!pelaMensagem) return dizer('Este agente não está no terminal do Habblaud nem tem o plugin de mensagens (npm run mod:install).');
-        if (!valor) return dizer('Escolha um item da lista: o seletor do Claude Code só abre no terminal do Habblaud.');
-        dizer('Enviando…');
+        if (!pelaMensagem) return dizer('erro', 'Sem terminal do Habblaud nem plugin de mensagens (npm run mod:install).');
+        if (!valor) return dizer('info', 'O seletor do Claude Code só abre no terminal do Habblaud.');
+        dizer('info', 'Enviando…');
         try {
           const msg = await postPty<{ id: string }>('/api/messages', { agentId, text: comandoSeletor(qual, valor).trim() });
-          dizer(await esperarMensagem(msg?.id));
+          const r = await esperarMensagem(msg?.id);
+          dizer(r.tom, r.texto);
         } catch (e) {
-          dizer(e instanceof Error ? e.message : 'Não enviou');
+          dizer('erro', e instanceof Error ? e.message : 'Não enviou');
         }
         return;
       }
@@ -105,28 +145,62 @@ export function instalarAtalhoModelo(ctx: UiContext): void {
       ctx.terminals?.open(agentId);
       await postPty(`/api/pty/${encodeURIComponent(pty.id)}/input`, { data: comandoSeletor(qual, valor) }).catch(() => undefined);
     };
-    const item = (texto: string, qual: Seletor, valor = '', marcado = false) =>
-      h('button', {
-        class: `dbm-item${marcado ? ' dbm-item--atual' : ''}`,
-        type: 'button',
-        text: marcado ? `✓ ${texto}` : texto,
-        on: { click: (e) => (e.stopPropagation(), void enviar(qual, valor)) },
-      });
-    const titulo = (t: string) => h('div', { class: 'dbm-titulo', text: t });
+
+    const clique = (qual: Seletor, valor: string) => (e: Event) => {
+      e.stopPropagation();
+      void enviar(qual, valor);
+    };
+    const modelo = (o: OpcaoMenu) => {
+      const marcado = modeloAtual(o, atual);
+      return h(
+        'button',
+        {
+          class: `dbm-op${marcado ? ' is-atual' : ''}`,
+          type: 'button',
+          role: 'menuitemradio',
+          attrs: { 'aria-checked': String(marcado) },
+          on: { click: clique('model', o.valor) },
+        },
+        h('span', { class: 'dbm-op__marca', attrs: { 'aria-hidden': 'true' } }),
+        h('span', { class: 'dbm-op__nome', text: o.rotulo }),
+        marcado ? h('span', { class: 'dbm-op__tag', text: 'atual' }) : null,
+      );
+    };
+    const mais = (qual: Seletor) =>
+      pty ? h('button', { class: 'dbm-mais', type: 'button', text: 'Outros…', title: 'Abre o seletor do Claude Code no terminal', on: { click: clique(qual, '') } }) : null;
+
     menu = h(
       'div',
-      { class: 'dbm-menu', role: 'menu' },
-      titulo('Modelo'),
-      ...MODELOS.map((o) => item(o.rotulo, 'model', o.valor, modeloAtual(o, atual))),
-      ...(pty ? [item('Outros… (abre o seletor)', 'model')] : []),
-      titulo('Effort'),
-      ...EFFORTS.map((o) => item(o.rotulo, 'effort', o.valor)),
-      ...(pty ? [item('Outros… (abre o seletor)', 'effort')] : []),
+      { class: 'dbm-menu', role: 'menu', attrs: { 'aria-label': 'Modelo e effort' } },
+      h('div', { class: 'dbm-head' }, h('span', { class: 'dbm-head__nome', text: agente?.name ?? 'Agente' }), h('span', { class: 'dbm-head__via', text: pty ? 'via terminal' : 'via mensagem' })),
+      h('div', { class: 'dbm-grupo' }, h('h3', { text: 'Modelo' }), ...MODELOS.map(modelo), mais('model')),
+      h(
+        'div',
+        { class: 'dbm-grupo' },
+        h('h3', { text: 'Effort' }),
+        h(
+          'div',
+          { class: 'dbm-seg', role: 'group', attrs: { 'aria-label': 'Effort' } },
+          ...EFFORTS.map((o) => h('button', { class: 'dbm-seg__op', type: 'button', text: o.rotulo, on: { click: clique('effort', o.valor) } })),
+        ),
+        mais('effort'),
+      ),
       aviso,
     );
-    document.body.append(menu);
-    const r = ancora.getBoundingClientRect();
-    menu.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - 220))}px`;
-    menu.style.top = `${Math.max(8, Math.min(r.bottom + 4, window.innerHeight - 380))}px`;
+    ctx.root.append(menu);
+    posicionar(menu, ancora);
+    menu.querySelector<HTMLElement>('.dbm-op.is-atual, .dbm-op')?.focus();
   });
+}
+
+/** Embaixo do chip; sem espaço, em cima. Sempre dentro da janela. */
+function posicionar(menu: HTMLElement, ancora: HTMLElement): void {
+  const r = ancora.getBoundingClientRect();
+  const w = menu.offsetWidth;
+  const alto = menu.offsetHeight;
+  const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+  const abaixo = r.bottom + 6;
+  const top = abaixo + alto <= window.innerHeight - 8 ? abaixo : Math.max(8, r.top - alto - 6);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
 }

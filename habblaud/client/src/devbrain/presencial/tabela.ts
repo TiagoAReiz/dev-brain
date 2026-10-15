@@ -1,7 +1,7 @@
 // Painel do modo presencial: um cartão por projeto, com resumo, agentes e subagentes. Reconcilia por roomId e agentId.
 import type { UiComponent, UiContext } from '../../ui/context';
 import { h, setAttr, setHidden, setText, setTitle } from '../../ui/dom';
-import { chipModelo } from '../modelo/atalho';
+import { atualizarChip, chipModelo } from '../modelo/atalho';
 import { focusPermission } from '../../ui/permission';
 import { type AgenteCartao, type CartaoProjeto, type FiltroPresencial, cartoesPresencial, resumoCartao, resumoPresencial } from './cartoes';
 import './presencial.css';
@@ -19,7 +19,7 @@ interface NoAgente {
   nome: HTMLElement;
   atividade: HTMLElement;
   desde: HTMLElement;
-  modelo: HTMLElement;
+  modelo: HTMLButtonElement;
   responder: HTMLButtonElement;
 }
 
@@ -235,7 +235,7 @@ export class TabelaPresencial implements UiComponent {
     const nome = h('span', { class: 'dbp-agente__nome' });
     const atividade = h('span', { class: 'dbp-agente__atividade' });
     const desde = h('span', { class: 'dbp-agente__desde' });
-    const modelo = chipModelo(() => id, 'dbp-agente__modelo');
+    const modelo = chipModelo(() => id);
     const responder = h('button', {
       class: 'dbp-responder',
       type: 'button',
@@ -267,9 +267,7 @@ export class TabelaPresencial implements UiComponent {
     setText(a.atividade, texto);
     setTitle(a.atividade, texto);
     setText(a.desde, ag.desde);
-    setText(a.modelo, ag.modelo);
-    setTitle(a.modelo, ag.modeloCompleto);
-    setHidden(a.modelo, !ag.modelo);
+    atualizarChip(a.modelo, ag.modeloCompleto || undefined, ag.modelo, !ag.sub);
     a.li.classList.toggle('dbp-agente--sub', ag.sub);
     a.li.classList.toggle('dbp-agente--calmo', ag.status === 'idle' || ag.status === 'done');
     a.li.classList.toggle('dbp-agente--urgente', ag.urgente);

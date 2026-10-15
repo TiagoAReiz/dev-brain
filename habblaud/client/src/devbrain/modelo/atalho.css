@@ -1,0 +1,235 @@
+/* Chip do modelo e menu de modelo/effort (atalho.ts). Mesmos tokens e peças do app: chip como o `.ui-role`, menu como o
+   popover de configurações, rótulos de grupo em Pixelify, marca quadrada em pixel como os pontos de status. */
+
+.dbm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  height: 17px;
+  padding: 0 5px 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(139, 152, 179, 0.16);
+  color: #b9c7e4;
+  font: 600 10.5px/1 var(--font-ui);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.15s var(--ease),
+    color 0.15s var(--ease);
+}
+.dbm-chip[hidden] {
+  display: none;
+}
+.dbm-chip::after {
+  content: '';
+  width: 0;
+  height: 0;
+  border: 3px solid transparent;
+  border-top-color: currentColor;
+  border-bottom-width: 0;
+  opacity: 0.6;
+}
+.dbm-chip:hover:not(:disabled),
+.dbm-chip[aria-expanded='true'] {
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent);
+}
+.dbm-chip:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+}
+.dbm-chip:disabled {
+  cursor: default;
+  background: none;
+  padding: 0 2px;
+  color: var(--ui-faint);
+}
+.dbm-chip:disabled::after {
+  display: none;
+}
+/* No modo presencial o chip é um pouco maior; na gaveta, alinhado ao valor. */
+.dbp-agente__linha .dbm-chip {
+  height: 18px;
+  font-size: 11px;
+}
+.ui-kv .dbm-chip {
+  height: 19px;
+  font-size: 12px;
+}
+
+.dbm-menu {
+  position: fixed;
+  z-index: 60;
+  width: 248px;
+  max-width: calc(100vw - 16px);
+  padding: 0 0 6px;
+  border-radius: 12px;
+  background: var(--ui-bg-solid);
+  border: 1px solid var(--ui-line-strong);
+  box-shadow: 0 20px 48px rgba(5, 7, 12, 0.55);
+  color: var(--ui-text);
+  font: 13px/1.4 var(--font-ui);
+  animation: dbm-in 0.14s var(--ease);
+}
+@keyframes dbm-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dbm-menu {
+    animation: none;
+  }
+  .dbm-chip {
+    transition: none;
+  }
+}
+
+.dbm-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 14px 6px;
+}
+.dbm-head__nome {
+  overflow: hidden;
+  font: 700 14px/1.2 var(--font-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dbm-head__via {
+  flex: none;
+  color: var(--ui-faint);
+  font-size: 11px;
+}
+
+.dbm-grupo {
+  padding: 6px 8px 4px;
+}
+.dbm-grupo + .dbm-grupo {
+  margin-top: 4px;
+  border-top: 1px solid var(--ui-line);
+  padding-top: 8px;
+}
+.dbm-grupo h3 {
+  margin: 0 6px 4px;
+  font: 500 12.5px/1.2 var(--font-px);
+  color: var(--ui-muted);
+  letter-spacing: 0.02em;
+}
+
+.dbm-op {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ui-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dbm-op:hover {
+  background: var(--ui-bg-hover);
+}
+.dbm-op:focus-visible,
+.dbm-seg__op:focus-visible,
+.dbm-mais:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: -2px;
+}
+.dbm-op__marca {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--ui-faint);
+  border-radius: 2px;
+}
+.dbm-op.is-atual .dbm-op__marca {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--ui-accent) 70%, transparent);
+}
+.dbm-op__nome {
+  flex: 1;
+}
+.dbm-op.is-atual .dbm-op__nome {
+  font-weight: 600;
+}
+.dbm-op__tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.dbm-seg {
+  display: flex;
+  margin: 0 6px 2px;
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--ui-bg-soft);
+  border: 1px solid var(--ui-line);
+}
+.dbm-seg__op {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--ui-muted);
+  font: 600 11.5px/1 var(--font-ui);
+  cursor: pointer;
+}
+.dbm-seg__op:hover {
+  background: var(--ui-bg-hover);
+  color: var(--ui-text);
+}
+
+.dbm-mais {
+  display: block;
+  margin: 2px 6px 0;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--ui-faint);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.dbm-mais:hover {
+  color: var(--ui-accent);
+}
+
+.dbm-aviso {
+  margin: 4px 8px 0;
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--ui-bg-soft);
+  color: var(--ui-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.dbm-aviso[hidden] {
+  display: none;
+}
+.dbm-aviso--ok {
+  background: color-mix(in srgb, var(--lv-ok) 13%, transparent);
+  color: var(--lv-ok);
+}
+.dbm-aviso--erro {
+  background: color-mix(in srgb, var(--lv-crit) 13%, transparent);
+  color: var(--lv-crit);
+}

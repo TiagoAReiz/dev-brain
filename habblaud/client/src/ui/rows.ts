@@ -2,7 +2,7 @@
 import type { AccountInfo, AgentInfo } from '../../../shared/types';
 import { createAvatar, updateAvatar, type AvatarSize } from './avatar';
 import { h, setAttr, setHidden, setStyleVar, setText, setTitle, setVariant } from './dom';
-import { chipModelo } from '../devbrain/modelo/atalho';
+import { atualizarChip, chipModelo } from '../devbrain/modelo/atalho';
 import { formatDuration, prettyModel } from './format';
 import { activityFallback, shellLine, shellWaitIn, statusLabel } from './model';
 import {
@@ -29,7 +29,7 @@ interface RowRefs {
   task: HTMLElement;
   /** Há quanto tempo está ocioso (no lugar do "Principal"). */
   since: HTMLElement;
-  model: HTMLElement;
+  model: HTMLButtonElement;
   size: AvatarSize;
 }
 
@@ -44,7 +44,7 @@ export function createAgentRow(agent: AgentInfo, onPick: (id: string) => void, s
   const activity = createActivityLine();
   const task = h('span', { class: 'ui-agent__task', hidden: true });
   const since = h('span', { class: 'ui-agent__since', hidden: true });
-  const model = chipModelo(() => row.dataset.id ?? null, 'dbp-agente__modelo');
+  const model = chipModelo(() => row.dataset.id ?? null);
   model.hidden = true;
   const row = h(
     'button',
@@ -79,9 +79,7 @@ export function updateAgentRow(
   setText(r.name, agent.name);
   updateAccountChip(r.chip, account, agent.account, agent.provider);
   updateRoleBadge(r.role, agent);
-  setText(r.model, agent.model ? prettyModel(agent.model) : '');
-  setTitle(r.model, agent.model ?? '');
-  setHidden(r.model, !agent.model);
+  atualizarChip(r.model, agent.model, agent.model ? prettyModel(agent.model) : '', agent.kind === 'main');
   const title = agent.title?.trim() ?? '';
   setText(r.task, title);
   setTitle(r.task, title);
