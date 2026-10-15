@@ -55,6 +55,19 @@ export function chipModelo(agentId: () => string | null, classe: string): HTMLBu
   return b;
 }
 
+/** Espera o plugin de mensagens entregar (até ~8 s) e devolve o texto para mostrar. */
+async function esperarMensagem(id: string | undefined): Promise<string> {
+  if (!id) return 'Enviado.';
+  for (let i = 0; i < 16; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    const res = await fetch(`/api/messages/${encodeURIComponent(id)}`).catch(() => null);
+    const m = (await res?.json().catch(() => null)) as { status?: string; error?: string } | null;
+    if (m?.status === 'failed') return `Falhou: ${m.error ?? 'a sessão recusou'}`;
+    if (m?.status === 'sent' || m?.status === 'delivered') return 'Trocado. O chip atualiza no próximo turno do agente.';
+  }
+  return 'Enviado (a sessão ainda não confirmou).';
+}
+
 export function instalarAtalhoModelo(ctx: UiContext): void {
   let menu: HTMLElement | null = null;
   const fechar = () => {
@@ -70,10 +83,22 @@ export function instalarAtalhoModelo(ctx: UiContext): void {
     const pty = ptyVivo(ctx.store.snapshot?.ptys, agentId);
     const aviso = h('div', { class: 'dbm-aviso', hidden: true });
     const atual = ctx.store.snapshot?.agents.find((a) => a.id === agentId)?.model;
+    const dizer = (t: string) => {
+      aviso.textContent = t;
+      aviso.hidden = false;
+    };
+    const pelaMensagem = !pty && !!ctx.store.snapshot?.agents.find((a) => a.id === agentId)?.canMessage;
     const enviar = async (qual: Seletor, valor = '') => {
       if (!pty) {
-        aviso.textContent = 'Só dá para trocar em agentes abertos no terminal do Habblaud.';
-        aviso.hidden = false;
+        if (!pelaMensagem) return dizer('Este agente não está no terminal do Habblaud nem tem o plugin de mensagens (npm run mod:install).');
+        if (!valor) return dizer('Escolha um item da lista: o seletor do Claude Code só abre no terminal do Habblaud.');
+        dizer('Enviando…');
+        try {
+          const msg = await postPty<{ id: string }>('/api/messages', { agentId, text: comandoSeletor(qual, valor).trim() });
+          dizer(await esperarMensagem(msg?.id));
+        } catch (e) {
+          dizer(e instanceof Error ? e.message : 'Não enviou');
+        }
         return;
       }
       fechar();
@@ -93,10 +118,10 @@ export function instalarAtalhoModelo(ctx: UiContext): void {
       { class: 'dbm-menu', role: 'menu' },
       titulo('Modelo'),
       ...MODELOS.map((o) => item(o.rotulo, 'model', o.valor, modeloAtual(o, atual))),
-      item('Outros… (abre o seletor)', 'model'),
+      ...(pty ? [item('Outros… (abre o seletor)', 'model')] : []),
       titulo('Effort'),
       ...EFFORTS.map((o) => item(o.rotulo, 'effort', o.valor)),
-      item('Outros… (abre o seletor)', 'effort'),
+      ...(pty ? [item('Outros… (abre o seletor)', 'effort')] : []),
       aviso,
     );
     document.body.append(menu);

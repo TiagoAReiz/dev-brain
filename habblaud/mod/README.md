@@ -91,6 +91,9 @@ esquema do `hooks.json`).
   texto vai exatamente como foi digitado. Com a sessão no meio de um turno, o Claude Code guarda o prompt e o roda
   num turno só dele quando o atual terminar (um prompt de plugin nunca entra no meio do turno, como um digitado
   pode entrar). Um hook que recuse a mensagem (`{drop}`) ou uma exceção viram falha, com o motivo, na página.
+  Exceção: `/model <modelo>` e `/effort <nível>` (só esses dois) rodam como comando por `$.command.run`, porque o
+  `$.prompt.submit` recusa texto que começa com `/`. É o que o menu do chip do modelo usa em agentes fora do terminal
+  do Habblaud.
 - **Confirmação:** um `POST /api/mod/inbox/ack` com o resultado de cada uma (`{session, results: [{id, ok, error?}]}`).
   A espera por mensagem é de no máximo 2 s: passou disso, a sessão está ocupada, a mensagem está na fila dela e
   conta como entregue (as seguintes vão em seguida, na ordem). Assim uma rodada nunca passa de uns poucos segundos e
@@ -108,13 +111,13 @@ Saída de `claude plugin validate --strict mod/habblaud-mensagens`:
 
 ```
 ❯ ./register.ts hooks: session.start
-❯ ./register.ts calls: $.clock.after (via waitAtMost), $.clock.every (via schedule), $.env.get (via readEnv), $.http.fetch (via postJson), $.prompt.submit (via submitOne), $.session.id (via round), $.session.surfaces (via round)
+❯ ./register.ts calls: $.clock.after (via waitAtMost), $.clock.every (via schedule), $.command.run (via submitOne), $.env.get (via readEnv), $.http.fetch (via postJson), $.prompt.submit (via submitOne), $.session.id (via round), $.session.surfaces (via round)
 ❯ ./register.ts env writes: nothing
 ❯ ./register.ts env reads: CLAUDE_CODE_ENTRYPOINT, CLAUDE_CONFIG_DIR, HABBLAUD_PORT, HOME, USERPROFILE
 ```
 
-Em palavras: um hook só (`session.start`, que liga o relógio das rodadas); a única ação na sessão é o
-`$.prompt.submit` das mensagens; não lê a conversa, não grava arquivo nenhum, fala só com `127.0.0.1` e lê quatro
+Em palavras: um hook só (`session.start`, que liga o relógio das rodadas); as ações na sessão são o
+`$.prompt.submit` das mensagens e o `$.command.run` de `/model` e `/effort`; não lê a conversa, não grava arquivo nenhum, fala só com `127.0.0.1` e lê quatro
 variáveis de ambiente (a conta sai do `CLAUDE_CONFIG_DIR`, como no mod). `$.clock.after` é o prazo de 2 s de cada
 pedido ao Habblaud e de cada `$.prompt.submit`.
 

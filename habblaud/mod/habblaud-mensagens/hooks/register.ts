@@ -221,8 +221,28 @@ async function postJson($: EngineInterface, port: number, path: string, body: st
   }
 }
 
+/** Comandos que o escritório pode rodar na sessão (o resto que começa com / é recusado pelo Claude Code). */
+export const SLASH_PERMITIDOS = ['model', 'effort'] as const
+
+/** "/model claude-opus-5-5" -> {command: 'model', args: 'claude-opus-5-5'}; fora da lista permitida = undefined. */
+export function parseSlash(text: string): { command: string; args: string } | undefined {
+  const m = /^\/([a-z]+)(?:[ \t]+(\S[^\r\n]*))?\s*$/i.exec(text)
+  const command = m?.[1]?.toLowerCase()
+  if (!m || !command || !(SLASH_PERMITIDOS as readonly string[]).includes(command)) return undefined
+  return { command, args: (m[2] ?? '').trim() }
+}
+
 /** Uma mensagem para a sessão, como se você a tivesse digitado. Nunca lança. */
 async function submitOne($: EngineInterface, text: string): Promise<Submitted> {
+  const slash = parseSlash(text)
+  if (slash) {
+    try {
+      await $.command.run(slash.args ? { command: slash.command, args: slash.args } : { command: slash.command })
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: reasonText(err, 'a sessão não rodou o comando') }
+    }
+  }
   try {
     const r = await $.prompt.submit({ text, asUser: true })
     if (typeof r?.drop === 'string') return { ok: false, error: reasonText(r.drop, 'um hook da sessão recusou a mensagem') }

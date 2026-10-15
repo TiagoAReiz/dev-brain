@@ -4,7 +4,7 @@
 // servidor) e o prompt.submit de baixo (a sessão: aceita, um hook recusa, a chamada lança ou fica presa).
 import type { HttpResponse, On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
-import { accountIdOf, ackBody, configDirOf, inboxBody, MAX_REASON, normalizePath, parseInbox, portOf, reasonText, type InboxMessage } from '../hooks/register'
+import { accountIdOf, ackBody, configDirOf, inboxBody, MAX_REASON, normalizePath, parseInbox, parseSlash, portOf, reasonText, type InboxMessage } from '../hooks/register'
 
 const NOW = Date.parse('2026-10-09T12:00:00Z')
 const PORT = '4850'
@@ -262,6 +262,15 @@ describe('rodadas', () => {
 })
 
 describe('funções puras', () => {
+  test('slash: só /model e /effort viram comando; o resto continua recusado', () => {
+    expect(parseSlash('/model claude-opus-5-5')).toEqual({ command: 'model', args: 'claude-opus-5-5' })
+    expect(parseSlash('/EFFORT high')).toEqual({ command: 'effort', args: 'high' })
+    expect(parseSlash('/model')).toEqual({ command: 'model', args: '' })
+    expect(parseSlash('/clear')).toBeUndefined()
+    expect(parseSlash('/model a\n/clear')).toBeUndefined()
+    expect(parseSlash('oi /model x')).toBeUndefined()
+  })
+
   test('inbox: formato estranho = fora do ar; item sem id fica de fora; sem texto vira texto vazio', () => {
     expect(parseInbox('<html>')).toBeUndefined()
     expect(parseInbox('[]')).toBeUndefined()
