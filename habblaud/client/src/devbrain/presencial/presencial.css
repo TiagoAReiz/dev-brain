@@ -233,6 +233,15 @@ html.modo-presencial .ui-empty {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.dbp-agente__modelo {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid var(--ui-border, rgba(255, 255, 255, 0.15));
+  border-radius: 8px;
+  color: var(--ui-faint);
+  font-size: 11px;
+  white-space: nowrap;
+}
 .dbp-agente__desde {
   flex: none;
   color: var(--ui-faint);

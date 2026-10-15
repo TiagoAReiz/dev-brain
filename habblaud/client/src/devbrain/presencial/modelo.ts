@@ -1,6 +1,6 @@
 // Modelo da tabela do modo presencial: linhas já ordenadas e prontas para exibir. Funções puras (sem DOM).
 import type { AgentStatus, OfficeSnapshot } from '../../../../shared/types';
-import { relativeTime } from '../../ui/format';
+import { prettyModel, relativeTime } from '../../ui/format';
 import { activityFallback, displayStatus, sortByUrgency, statusLabel } from '../../ui/model';
 
 export interface LinhaPresencial {
@@ -15,6 +15,9 @@ export interface LinhaPresencial {
   statusTexto: string;
   atividade: string;
   desde: string;
+  /** Nome curto do modelo ("Opus 5.5"); vazio quando o agente ainda não informou. */
+  modelo: string;
+  modeloCompleto: string;
   urgente: boolean;
 }
 
@@ -92,6 +95,8 @@ export function linhasPresencial(snap: Pick<OfficeSnapshot, 'rooms' | 'agents'> 
         statusTexto: statusLabel(status),
         atividade: a.activity?.text ?? activityFallback(a),
         desde: relativeTime(a.statusSince, now),
+        modelo: a.model ? prettyModel(a.model) : '',
+        modeloCompleto: a.model ?? '',
         urgente: status === 'waiting',
       });
     });

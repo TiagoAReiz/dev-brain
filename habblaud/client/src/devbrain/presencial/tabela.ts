@@ -18,6 +18,7 @@ interface NoAgente {
   nome: HTMLElement;
   atividade: HTMLElement;
   desde: HTMLElement;
+  modelo: HTMLElement;
   responder: HTMLButtonElement;
 }
 
@@ -233,6 +234,7 @@ export class TabelaPresencial implements UiComponent {
     const nome = h('span', { class: 'dbp-agente__nome' });
     const atividade = h('span', { class: 'dbp-agente__atividade' });
     const desde = h('span', { class: 'dbp-agente__desde' });
+    const modelo = h('span', { class: 'dbp-agente__modelo' });
     const responder = h('button', {
       class: 'dbp-responder',
       type: 'button',
@@ -248,10 +250,10 @@ export class TabelaPresencial implements UiComponent {
     const li = h(
       'li',
       { class: 'dbp-agente', tabIndex: 0, on: { click: () => this.selecionar(id) } },
-      h('div', { class: 'dbp-agente__linha' }, ponto, nome, atividade, desde, responder),
+      h('div', { class: 'dbp-agente__linha' }, ponto, nome, modelo, atividade, desde, responder),
     );
     li.dataset.key = id;
-    return { li, ponto, nome, atividade, desde, responder };
+    return { li, ponto, nome, modelo, atividade, desde, responder };
   }
 
   private atualizarAgente(a: NoAgente, ag: AgenteCartao): void {
@@ -264,6 +266,9 @@ export class TabelaPresencial implements UiComponent {
     setText(a.atividade, texto);
     setTitle(a.atividade, texto);
     setText(a.desde, ag.desde);
+    setText(a.modelo, ag.modelo);
+    setTitle(a.modelo, ag.modeloCompleto);
+    setHidden(a.modelo, !ag.modelo);
     a.li.classList.toggle('dbp-agente--sub', ag.sub);
     a.li.classList.toggle('dbp-agente--calmo', ag.status === 'idle' || ag.status === 'done');
     a.li.classList.toggle('dbp-agente--urgente', ag.urgente);

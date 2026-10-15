@@ -132,4 +132,14 @@ describe('linhasPresencial', () => {
     expect(linhas.map((l) => l.agentId)).toEqual(['a', 'x']);
     expect(linhas[1].projeto).toBe('r9');
   });
+
+  it('traz o nome curto do modelo e deixa vazio quando não há', () => {
+    const snap = {
+      rooms: [sala('r1', 'app', 0)],
+      agents: [agente('a', 'r1', 'working', { model: 'claude-opus-5-5' }), agente('b', 'r1', 'idle')],
+    };
+    const [a, b] = linhasPresencial(snap, AGORA);
+    expect(a).toMatchObject({ modelo: 'Opus 5.5', modeloCompleto: 'claude-opus-5-5' });
+    expect(b).toMatchObject({ modelo: '', modeloCompleto: '' });
+  });
 });
