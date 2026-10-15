@@ -408,3 +408,13 @@ html.modo-presencial .ui-feed__row {
   color: var(--ui-faint);
   font-size: 12px;
 }
+.dbm-titulo {
+  padding: 6px 10px 2px;
+  color: var(--ui-faint);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.dbm-item--atual {
+  font-weight: 600;
+}
