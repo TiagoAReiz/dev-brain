@@ -87,6 +87,28 @@ for agent_md in "$DEV_BRAIN_HOME"/global/agents/*.md; do
   link "$agent_md" "$CLAUDE_DIR/agents/$(basename "$agent_md")"
 done
 
+# Workflows (scripts do time de agentes): viram o comando /<meta.name> no Claude Code.
+for wf in "$DEV_BRAIN_HOME"/global/workflows/*.js; do
+  [ -f "$wf" ] || continue
+  link "$wf" "$CLAUDE_DIR/workflows/$(basename "$wf")"
+done
+
+# Liga os workflows no Claude Code (o mesmo toggle do /config). Só acrescenta a chave se ela não existir:
+# nunca sobrescreve um valor que a pessoa já escolheu, nem mexe no resto do settings.json.
+settings="$CLAUDE_DIR/settings.json"
+if [ ! -s "$settings" ]; then
+  mkdir -p "$CLAUDE_DIR"
+  printf '{\n  "enableWorkflows": true\n}\n' > "$settings"
+  done_items+=("criado: ${settings/#$HOME/\~} com enableWorkflows")
+elif jq -e 'has("enableWorkflows")' "$settings" >/dev/null 2>&1; then
+  skipped_items+=("enableWorkflows já definido em ${settings/#$HOME/\~}")
+elif command -v jq >/dev/null 2>&1 && jq -e . "$settings" >/dev/null 2>&1; then
+  jq '. + {enableWorkflows: true}' "$settings" > "$settings.tmp.$$" && mv "$settings.tmp.$$" "$settings"
+  done_items+=("enableWorkflows ligado em ${settings/#$HOME/\~}")
+else
+  manual_items+=("ligar workflows: /config > Dynamic workflows (ou \"enableWorkflows\": true no settings.json)")
+fi
+
 # Instruções só desta máquina, importadas pelo global/CLAUDE.md. Criado uma vez; nunca sobrescrito.
 maquina="$CLAUDE_DIR/CLAUDE.maquina.md"
 if [ -e "$maquina" ]; then

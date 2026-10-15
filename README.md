@@ -36,7 +36,7 @@ lib/                  # código usado pelos scripts e bins (spec-check, habblaud
 global/CLAUDE.md      # instruções globais  -> ~/.claude/CLAUDE.md
 global/skills/<nome>/ # uma pasta por skill -> ~/.claude/skills/<nome>
 global/agents/<nome>.md # subagentes do time -> ~/.claude/agents/<nome>.md
-global/workflows/     # scripts de Workflow (time.js: o time de agentes)
+global/workflows/     # scripts de Workflow (time.js: o time de agentes) -> ~/.claude/workflows/<nome>.js (vira /time-de-agentes)
 templates/            # modelos usados pelo new-project.sh
 memory/README.md      # índice de projetos (repo privado à parte, ver "Memória privada")
 memory/<projeto>/     # README, arquitetura, estado-atual, decisoes, roadmap, specs/
@@ -97,7 +97,7 @@ Só a configuração do shell (máquina que já tem as ferramentas): `./install-
 Se houver **fish**, ela grava `~/.config/fish/conf.d/dev-brain.fish` com `DEV_BRAIN_HOME`, `~/.local/bin` no PATH e o alias do claude.
 
 O `bootstrap.sh` é idempotente e pode rodar quantas vezes quiser. Ele:
-- cria symlinks de `global/CLAUDE.md`, de cada skill e de cada subagente (`global/agents/`) em `~/.claude/`, e de cada script de `bin/` em `~/.local/bin/`;
+- cria symlinks de `global/CLAUDE.md`, de cada skill, de cada subagente (`global/agents/`) e de cada workflow (`global/workflows/*.js`) em `~/.claude/`, e de cada script de `bin/` em `~/.local/bin/`;
 - cria `~/.claude/CLAUDE.maquina.md` (uma vez só) para instruções que valem só naquela máquina; o `global/CLAUDE.md` importa esse arquivo;
 - se já houver outro arquivo no destino, move para `<arquivo>.bak.<data>` e avisa (nunca apaga);
 - só **verifica** git, gh, node, python3, shellcheck e claude, sem instalar nada;
@@ -182,6 +182,12 @@ Toda implementação vira trabalho de um time:
    Claude in Chrome no Linux/macOS) e fecha a memória com a tabela de métricas.
 
 Depois do seu "ok" na spec, o time roda sozinho até o resumo. Acompanhe pelo `/workflows` ou pelo Habblaud.
+
+O `time.js` é um *dynamic workflow* nativo do Claude Code ([docs](https://code.claude.com/docs/en/workflows)): um script JS que o runtime executa
+em background, com `agent()`/`parallel()`/`pipeline()`, `args` e `meta`. Por isso valem as regras do runtime: sem `import()`, sem acesso direto a
+arquivo/shell (só os agentes têm), e `Date.now()`/`Math.random()` dão erro (o run precisa ser repetível para poder ser retomado). O `bootstrap.sh`
+linka o script em `~/.claude/workflows/`, então ele também roda como `/time-de-agentes` e entra no autocomplete (`/reload-skills` recarrega após editar).
+Antes de editar o script, rode `/workflow-authoring` (skill nativa, Claude Code v2.1.248+). No `/workflows`: `p` pausa, `x` para, `r` reinicia um agente.
 Subagentes ficam em `global/agents/`: `dev-rapido`, `dev`, `gate`, `revisor`, `qa-browser`. O commit é um script montado pelo `time.js` (sem LLM escrevendo a mensagem) e falha se aparecer atribuição de IA.
 
 O `project start` mostra o `estado-atual.md` do projeto ao abrir.
